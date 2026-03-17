@@ -1,0 +1,136 @@
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: radial-gradient(circle at center, #2a2a35 0%, #0d0d12 100%);
+  color: #eaeaea;
+  overflow: hidden; /* Chống cuộn trang khi đang chơi */
+  user-select: none; /* Tránh bôi đen text nhầm */
+}
+
+h1, h2, h3 {
+  font-family: 'Cinzel', serif;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+/* Base cấu trúc nút bấm */
+.game-btn {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.game-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.game-btn:active {
+  transform: translateY(1px);
+}
+
+/* Các loại nút */
+.btn-primary {
+  background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+  color: white;
+}
+
+.btn-primary:disabled {
+  background: #444;
+  color: #777;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #ffb300 0%, #f57c00 100%);
+  color: #111;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #f44336 0%, #c62828 100%);
+  color: white;
+}
+
+/* Hiệu ứng Kính mờ cao cấp */
+.glass-panel {
+  background: rgba(30, 30, 40, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+  border-radius: 16px;
+}
+
+/* Tùy chỉnh thanh chọn (Select) */
+.game-select {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-family: 'Inter', sans-serif;
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  outline: none;
+  transition: border 0.3s;
+}
+
+.game-select:focus {
+  border-color: #ffb300;
+}
+
+.game-select option {
+  background: #2a2a35;
+  color: white;
+}
+
+.region-path {
+  transition: filter 0.2s ease, stroke-width 0.2s ease;
+  transform-origin: center;
+}
+
+/* Sáng lên khi di chuột vào vùng Đất/Nước */
+.region-path:hover {
+  filter: brightness(1.25) contrast(1.1);
+}
+
+/* Lính và công trình nhấp nhô nhẹ */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+  100% { transform: translateY(0px); }
+}
+
+.troop-icon {
+  animation: float 3s infinite ease-in-out;
+}
+
+/* Đặt thời gian lệch nhau để lính không nhấp nhô đều tăm tắp */
+.troop-icon:nth-child(even) {
+  animation-delay: 0.5s;
+}
+.troop-icon:nth-child(3n) {
+  animation-delay: 1s;
+}
