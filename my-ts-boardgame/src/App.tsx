@@ -41,7 +41,7 @@ function App() {
       game: customGame,
       board: WrappedBoard, 
       numPlayers: appState === 'editor' ? 1 : numPlayers,
-      multiplayer: appState === 'editor' ? Local() : SocketIO({ server: 'https://my-game-raxg.onrender.com' }), 
+      multiplayer: appState === 'editor' ? Local() : SocketIO({ server: 'https://my-game-raxg.onrender.com' }), //https://my-game-raxg.onrender.com
       debug: false,
     }); 
 
@@ -131,6 +131,7 @@ function App() {
                 <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                   <span style={{ fontWeight: 'bold' }}>👤 Bạn là Player:</span>
                   <select value={playerID} onChange={(e) => setPlayerID(e.target.value)} style={{ padding: '8px', background: '#333', color: 'white', border: '1px solid #777', borderRadius: '4px' }}>
+                    <option value="0">P1 (Đỏ) - Chủ phòng</option> {/* ĐÃ THÊM P1 VÀO ĐÂY */}
                     <option value="1">P2 (Xanh lá)</option>
                     <option value="2">P3 (Xanh dương)</option>
                     <option value="3">P4 (Vàng)</option>
@@ -178,7 +179,6 @@ function App() {
         </div>
       )}
 
-      {/* Đã xóa phần overlay hiển thị mã phòng theo yêu cầu */}
       {DynamicGameClient && (() => {
         const GameClient = DynamicGameClient as any;
         return (

@@ -1,6 +1,7 @@
 // src/components/DraftScreen.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import type { GameState, General } from '../game/Game';
+import { GeneralCard } from './GeneralCard';
 
 interface DraftScreenProps {
   G: GameState;
@@ -11,10 +12,61 @@ interface DraftScreenProps {
 }
 
 const playerColors: Record<string, string> = { 
-  '0': '#ee0a0a', 
-  '1': '#22ec0f', 
-  '2': '#0f5e9c',
-  '3': '#e6b800'
+  '0': '#ff5252', // Đỏ
+  '1': '#4caf50', // Xanh lá
+  '2': '#2196f3', // Xanh dương
+  '3': '#ffeb3b'  // Vàng
+};
+
+// Component con xử lý từng ô Tướng đã chọn trong Đội hình (Roster)
+const RosterSlot = ({ g, pColor }: { g?: General, pColor: string }) => {
+    // Nếu ô còn trống
+    if (!g) {
+        return (
+            <div style={{ display: 'flex', gap: '10px', height: '45px' }}>
+                <div style={{ width: '45px', background: 'rgba(0,0,0,0.2)', border: '1px dashed #555', borderRadius: '6px' }} />
+                <div style={{ flex: 1, background: 'rgba(0,0,0,0.2)', border: '1px dashed #555', borderRadius: '6px' }} />
+            </div>
+        );
+    }
+    
+    // Nếu đã có tướng -> Load ảnh và tên
+    const [imgSrc, setImgSrc] = useState(`/${g.id.replace('G', '')}.png`);
+    return (
+        <div style={{ display: 'flex', gap: '10px', height: '45px' }}>
+            {/* Cột Trái: Ảnh Tướng */}
+            <div style={{ 
+                width: '45px', borderRadius: '6px', overflow: 'hidden', 
+                border: `2px solid ${pColor}`, flexShrink: 0, background: '#000' 
+            }}>
+                <img 
+                    src={imgSrc} 
+                    onError={() => setImgSrc('/G_image.png')} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    alt={g.name} 
+                />
+            </div>
+            {/* Cột Phải: Tên Tướng */}
+            <div style={{ 
+                flex: 1, 
+                background: 'linear-gradient(180deg, #2a4365 0%, #1a365d 100%)', // Màu xanh lam
+                color: '#fff', 
+                borderRadius: '6px', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: `1px solid ${pColor}`,
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2)',
+                padding: '0 8px'
+            }}>
+                <span style={{ 
+                    fontSize: '13px', fontWeight: 'bold', display: '-webkit-box', 
+                    WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', 
+                    lineHeight: '1.2', textAlign: 'center' 
+                }}>
+                    {g.name}
+                </span>
+            </div>
+        </div>
+    );
 };
 
 export const DraftScreen: React.FC<DraftScreenProps> = ({ G, ctx, moves, playerID, matchID }) => {
@@ -37,138 +89,116 @@ export const DraftScreen: React.FC<DraftScreenProps> = ({ G, ctx, moves, playerI
     }
   };
 
+  const leftPlayers = [0, 2].filter(i => i < numPlayers).map(i => i.toString());
+  const rightPlayers = [1, 3].filter(i => i < numPlayers).map(i => i.toString());
+
+  const PlayerRoster = ({ pId }: { pId: string }) => {
+    const pGenerals = G.playerGenerals[pId] || [];
+    const pColor = playerColors[pId];
+    const isDraftingNow = ctx.currentPlayer === pId;
+    const isMe = pId === playerID;
+    const slots = [0, 1, 2, 3];
+
+    return (
+        <div style={{ marginBottom: '25px' }}>
+            <div style={{ 
+                background: '#1a1a1a', padding: '12px 15px', 
+                borderTop: `4px solid ${pColor}`,
+                boxShadow: isDraftingNow ? `0 0 15px ${pColor}80` : '0 4px 6px rgba(0,0,0,0.5)',
+                borderBottom: '1px solid #333'
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ margin: 0, color: pColor, fontSize: '16px' }}>
+                        {isMe ? "BẠN (P" : "P"}{parseInt(pId) + 1}{isMe ? ")" : ""}
+                    </h4>
+                    <span style={{ fontSize: '13px', color: '#aaa' }}>{pGenerals.length}/4 Tướng</span>
+                </div>
+            </div>
+
+            {/* Lưới dọc (Dạng danh sách) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                {slots.map(index => (
+                    <RosterSlot key={index} g={pGenerals[index]} pColor={pColor} />
+                ))}
+            </div>
+        </div>
+    );
+  };
+
+  // Chỉ lấy đúng những thẻ bài của vòng hiện tại
+  const generalsAtPower = G.availableGenerals.filter(g => g.power === targetPower);
+
   return (
     <div style={{
       width: '100vw', height: '100vh', 
       backgroundColor: '#111', color: '#fff',
       display: 'flex', flexDirection: 'column',
-      backgroundImage: 'radial-gradient(circle at center, #2a2a2a 0%, #000 100%)',
+      backgroundImage: 'radial-gradient(circle at center, #1e1e1e 0%, #000 100%)',
       position: 'relative',
       overflow: 'hidden'
     }}>
-      <div style={{
-        position: 'absolute', top: 20, left: 20, zIndex: 100,
-        background: 'rgba(0,0,0,0.7)', padding: '10px 20px', 
-        borderRadius: '8px', border: '1px solid #555',
-        boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
-      }}>
-        <span style={{ color: '#aaa', fontSize: '14px' }}>Mã phòng: </span>
-        <span style={{ color: '#ffd700', fontSize: '18px', fontWeight: 'bold', userSelect: 'all' }}>
-          {matchID || 'Local'}
-        </span>
-      </div>
       {/* HEADER BANNER */}
       <div style={{
-        textAlign: 'center', padding: '20px', 
-        borderBottom: `4px solid ${currentPlayerColor}`,
-        background: 'rgba(0,0,0,0.5)', boxShadow: '0 4px 15px rgba(0,0,0,0.5)'
+        textAlign: 'center', padding: '15px', 
+        borderBottom: `3px solid ${currentPlayerColor}`,
+        background: 'rgba(0,0,0,0.8)', boxShadow: '0 4px 15px rgba(0,0,0,0.5)', zIndex: 10
       }}>
-        <h1 style={{ margin: '0 0 10px 0', color: '#ffd700', fontSize: '36px', textShadow: '0 2px 4px #000' }}>
+        <h1 style={{ margin: '0 0 5px 0', color: '#ffd700', fontSize: '28px', textShadow: '0 2px 4px #000' }}>
           ⚔️ ĐẠI HỘI QUẦN HÙNG - VÒNG {currentRound} ⚔️
         </h1>
         {isMyTurn ? (
-          <h2 style={{ margin: 0, color: currentPlayerColor, animation: 'pulse 1.5s infinite' }}>
+          <h2 style={{ margin: 0, color: currentPlayerColor, animation: 'pulse 1.5s infinite', fontSize: '18px' }}>
             👑 LƯỢT CỦA BẠN - HÃY CHỌN 1 TƯỚNG SỨC MẠNH {targetPower} ĐIỂM
           </h2>
         ) : (
-          <h2 style={{ margin: 0, color: '#aaa' }}>
-            Đang chờ <span style={{ color: currentPlayerColor }}>Người chơi {parseInt(ctx.currentPlayer) + 1}</span> chọn Tướng (Yêu cầu Tướng {targetPower}đ)...
+          <h2 style={{ margin: 0, color: '#aaa', fontSize: '18px' }}>
+            Đang chờ <span style={{ color: currentPlayerColor }}>Người chơi {parseInt(ctx.currentPlayer) + 1}</span> chọn Tướng...
           </h2>
         )}
       </div>
 
-      <div style={{ display: 'flex', flex: 1, padding: '20px', gap: '20px', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, padding: '20px', gap: '30px', overflow: 'hidden', maxWidth: '1600px', margin: '0 auto', width: '100%' }}>
         
-        {/* CỘT TRÁI: BỂ TƯỚNG (POOL) */}
-        <div className="glass-panel" style={{ flex: 2, padding: '20px', overflowY: 'auto', border: '1px solid #444' }}>
-          <h3 style={{ margin: '0 0 20px 0', color: '#fff', borderBottom: '1px solid #555', paddingBottom: '10px' }}>
-            📜 DANH SÁCH TƯỚNG TRÊN BÀN (Còn lại: {G.availableGenerals.length})
-          </h3>
-          
-          {[4, 3, 2, 1].map(powerLvl => {
-            const generalsAtPower = G.availableGenerals.filter(g => g.power === powerLvl);
-            const isTargetPower = powerLvl === targetPower;
+        {/* CỘT TRÁI: ROSTERS P1, P3 */}
+        <div style={{ width: '280px', paddingRight: '10px' }}>
+            {leftPlayers.map(pId => <PlayerRoster key={pId} pId={pId} />)}
+        </div>
+
+        {/* CỘT GIỮA: BỂ TƯỚNG (CHỈ HIỂN THỊ VÒNG HIỆN TẠI, KHÔNG CẦN CUỘN) */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <h3 style={{ 
+                margin: '0 0 30px 0', color: '#ffeb3b', 
+                borderBottom: `2px solid #ffeb3b`, paddingBottom: '10px',
+                textTransform: 'uppercase', letterSpacing: '2px', textAlign: 'center'
+            }}>
+                ⭐ Tướng {targetPower} Điểm 
+            </h3>
             
-            if (generalsAtPower.length === 0) return null;
-
-            return (
-              <div key={`power-${powerLvl}`} style={{ marginBottom: '30px', opacity: isTargetPower ? 1 : 0.4 }}>
-                <h4 style={{ margin: '0 0 15px 0', color: isTargetPower ? '#ffeb3b' : '#888' }}>
-                  ⭐ Tướng {powerLvl} Điểm {isTargetPower && "(Đang được chọn)"}
-                </h4>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
-                  {generalsAtPower.map((g: General) => (
-                    <div 
-                      key={g.id}
-                      onClick={() => isTargetPower && handlePick(g.id)}
-                      style={{
-                        width: '180px', height: '120px',
-                        background: 'linear-gradient(135deg, #2c3e50 0%, #1a252f 100%)',
-                        border: `2px solid ${isTargetPower && isMyTurn ? '#ffeb3b' : '#333'}`,
-                        borderRadius: '10px', padding: '15px',
-                        display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
-                        cursor: isTargetPower && isMyTurn ? 'pointer' : 'not-allowed',
-                        boxShadow: isTargetPower && isMyTurn ? '0 0 15px rgba(255, 235, 59, 0.3)' : 'none',
-                        transition: 'transform 0.2s',
-                        transform: isTargetPower && isMyTurn ? 'scale(1)' : 'scale(0.95)'
-                      }}
-                      onMouseEnter={(e) => { if(isTargetPower && isMyTurn) e.currentTarget.style.transform = 'scale(1.05)' }}
-                      onMouseLeave={(e) => { if(isTargetPower && isMyTurn) e.currentTarget.style.transform = 'scale(1)' }}
-                    >
-                      <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ffeb3b', marginBottom: '10px' }}>
-                        ⭐ {g.power}
-                      </div>
-                      <div style={{ textAlign: 'center', fontSize: '14px', color: '#fff', lineHeight: '1.4' }}>
-                        {g.name}
-                      </div>
-                    </div>
-                  ))}
+            {/* LƯỚI 2x2 CỐ ĐỊNH (GRID) - TRÁNH LỖI 3-1 */}
+            <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(2, 1fr)', // Ép cứng 2 cột
+                gap: '25px', 
+                justifyItems: 'center'
+            }}>
+              {generalsAtPower.map((g: General) => (
+                <div key={g.id} style={{ transform: 'scale(0.95)' }}>
+                    <GeneralCard 
+                        gen={g} 
+                        isSelected={false} 
+                        disabledMsg={isMyTurn ? '' : 'Chờ đối thủ'} 
+                        onClick={() => isMyTurn && handlePick(g.id)} 
+                    />
                 </div>
-              </div>
-            );
-          })}
+              ))}
+            </div>
         </div>
 
-        {/* CỘT PHẢI: ĐỘI HÌNH NGƯỜI CHƠI (ROSTERS) */}
-        <div className="glass-panel" style={{ flex: 1, padding: '20px', overflowY: 'auto', border: '1px solid #444', minWidth: '300px' }}>
-          <h3 style={{ margin: '0 0 20px 0', color: '#fff', borderBottom: '1px solid #555', paddingBottom: '10px' }}>
-            🛡️ ĐỘI HÌNH CÁC LÃNH CHÚA
-          </h3>
-          
-          {Array.from({ length: numPlayers }).map((_, idx) => {
-            const pId = idx.toString();
-            const pGenerals = G.playerGenerals[pId] || [];
-            const pColor = playerColors[pId];
-            const isDraftingNow = ctx.currentPlayer === pId;
-
-            return (
-              <div key={pId} style={{ 
-                marginBottom: '20px', padding: '15px', 
-                backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '8px',
-                borderLeft: `5px solid ${pColor}`,
-                boxShadow: isDraftingNow ? `0 0 15px ${pColor}80` : 'none'
-              }}>
-                <h4 style={{ margin: '0 0 10px 0', color: pColor, display: 'flex', justifyContent: 'space-between' }}>
-                  <span>{pId === playerID ? "Bạn (P" : "P"}{idx + 1}{pId === playerID ? ")" : ""}</span>
-                  <span style={{ fontSize: '14px', color: '#aaa' }}>{pGenerals.length}/4 Tướng</span>
-                </h4>
-                
-                {pGenerals.length === 0 ? (
-                  <div style={{ color: '#666', fontStyle: 'italic', fontSize: '13px' }}>Chưa chiêu mộ tướng nào...</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {pGenerals.map(g => (
-                      <div key={g.id} style={{ display: 'flex', alignItems: 'center', background: '#222', padding: '6px 10px', borderRadius: '4px' }}>
-                        <span style={{ color: '#ffeb3b', fontWeight: 'bold', width: '30px' }}>{g.power}đ</span>
-                        <span style={{ color: '#ddd', fontSize: '13px' }}>{g.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        {/* CỘT PHẢI: ROSTERS P2, P4 */}
+        <div style={{ width: '280px', paddingLeft: '10px' }}>
+            {rightPlayers.map(pId => <PlayerRoster key={pId} pId={pId} />)}
         </div>
+
       </div>
     </div>
   );

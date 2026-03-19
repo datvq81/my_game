@@ -65,6 +65,8 @@ export interface GameState {
   } | null;
   pendingG42?: { regionId: string, playerId: string } | null;
   setupDataTracker: Record<string, any>;
+
+  lastBattleResult?: any;
 }
 
 const getEmptyRegion = (): RegionData => ({
@@ -95,6 +97,11 @@ const finalizeBattle = (G: GameState, battle: any, winner: 'ATTACKER' | 'DEFENDE
   }
   checkNeutralRegions(G);
   battle.stage = 'RESULT';
+  G.lastBattleResult = { 
+      ...battle, 
+      winner: winner, // Đã sửa lỗi thiếu winner cho UI ở lần hỗ trợ trước
+      timestamp: Date.now() // Tem thời gian để React biết có trận mới
+  };
 };
 
 export const getValidRetreatRegions = (G: GameState, battle: any, playerId: string): string[] => {
@@ -269,10 +276,30 @@ const executeBattleResolution = (G: GameState, events?: any) => {
     hasG3_3 = (defenderGen?.id === 'G3_3' && !state.defenderGenDisabled);
     
     let defSurviving = { ...originalDefenderTroops };
-    const keepPhao = (defenderGen?.id === 'G3_2' && !state.defenderGenDisabled);
-    if (!keepPhao) defSurviving.phao = 0;
-    defSurviving.tot += defSurviving.ma;
-    defSurviving.ma = 0;
+    
+    // ✅ KIỂM TRA: PHE THỦ CHỈ CÓ ĐÚNG 1 TỐT
+    const isOnlyOneTotDefending = originalDefenderTroops.tot === 1 && originalDefenderTroops.ma === 0 && originalDefenderTroops.phao === 0 && originalDefenderTroops.tau === 0;
+
+    if (isOnlyOneTotDefending) {
+        // Nếu chỉ có 1 Tốt thủ thành mà thua -> Chết luôn
+        defSurviving.tot = 0;
+        battle.combatStats!.logs.push(`☠️ Phe Thủ chỉ có 1 Tốt lẻ loi phòng vệ, thảm bại và tử trận hoàn toàn!`);
+    } else {
+        const keepPhao = (defenderGen?.id === 'G3_2' && !state.defenderGenDisabled);
+        if (!keepPhao) defSurviving.phao = 0;
+        
+        // Mã ngã ngựa biến thành Tốt
+        defSurviving.tot += defSurviving.ma;
+        defSurviving.ma = 0;
+        
+        // Chia một nửa số Tốt rút lui (làm tròn lên)
+        const originalTotCount = defSurviving.tot;
+        defSurviving.tot = Math.ceil(defSurviving.tot / 2);
+        
+        if (originalTotCount > 0) {
+            battle.combatStats!.logs.push(`☠️ Tàn quân phe Thủ bị truy sát, chỉ còn ${defSurviving.tot} Tốt sống sót tháo chạy.`);
+        }
+    }
     
     retreatingTroops = defSurviving;
 
@@ -299,10 +326,30 @@ const executeBattleResolution = (G: GameState, events?: any) => {
     hasG3_3 = (attackerGen?.id === 'G3_3' && !state.attackerGenDisabled);
     
     let attSurviving = { ...troops };
-    const keepPhao = (attackerGen?.id === 'G3_2' && !state.attackerGenDisabled);
-    if (!keepPhao) attSurviving.phao = 0;
-    attSurviving.tot += attSurviving.ma;
-    attSurviving.ma = 0;
+    
+    // ✅ KIỂM TRA: PHE CÔNG CHỈ CÓ ĐÚNG 1 TỐT
+    const isOnlyOneTotAttacking = troops.tot === 1 && troops.ma === 0 && troops.phao === 0 && troops.tau === 0;
+
+    if (isOnlyOneTotAttacking) {
+        // Nếu chỉ có 1 Tốt đi đánh mà thua -> Chết luôn
+        attSurviving.tot = 0;
+        battle.combatStats!.logs.push(`☠️ Phe Công mang 1 Tốt lẻ loi đi đánh, thảm bại và bị tiêu diệt hoàn toàn tại trận!`);
+    } else {
+        const keepPhao = (attackerGen?.id === 'G3_2' && !state.attackerGenDisabled);
+        if (!keepPhao) attSurviving.phao = 0;
+        
+        // Mã ngã ngựa biến thành Tốt
+        attSurviving.tot += attSurviving.ma;
+        attSurviving.ma = 0;
+        
+        // Chia một nửa số Tốt rút lui (làm tròn lên)
+        const originalAttTotCount = attSurviving.tot;
+        attSurviving.tot = Math.ceil(attSurviving.tot / 2);
+
+        if (originalAttTotCount > 0) {
+            battle.combatStats!.logs.push(`☠️ Đội hình phe Công vỡ trận, chỉ còn ${attSurviving.tot} Tốt dạt về tuyến sau.`);
+        }
+    }
 
     retreatingTroops = attSurviving;
 
@@ -312,6 +359,8 @@ const executeBattleResolution = (G: GameState, events?: any) => {
   const totalRetreating = retreatingTroops.tot + retreatingTroops.ma + retreatingTroops.phao + retreatingTroops.tau;
 
   if (totalRetreating > 0) {
+    battle.retreatingTroops = retreatingTroops;
+
     // Gọi hàm tính đường lui hợp lệ
     const validRetreats = getValidRetreatRegions(G, battle, retreatingPlayerId);
     battle.validRetreats = validRetreats;
@@ -514,7 +563,7 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
               if (r.owner === p) {
                 income += MAP_CONFIG.balance.economy.castle_income; 
                 if (r.hasGranary) income += MAP_CONFIG.balance.economy.granary_income; 
-                r.command = 'none'; 
+                // XÓA ĐOẠN RESET LỆNH Ở ĐÂY RỒI ĐỂ TRÁNH RESET LẺ TẺ
               }
             });
             G.reserves[p] += income;
@@ -689,7 +738,14 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
             G.playersDoneThisStep = [];
             if (G.roundStep === 'ECONOMY') G.roundStep = 'SUPPORT';
             else if (G.roundStep === 'SUPPORT') G.roundStep = 'ACTION';
-            else if (G.roundStep === 'ACTION') G.roundStep = 'ECONOMY';
+            else if (G.roundStep === 'ACTION') {
+              G.roundStep = 'ECONOMY';
+              // ✅ TẠI ĐÂY: Người cuối cùng bấm nút "Kết thúc tấn công", chuyển lại sang bước Economy.
+              // Hệ thống sẽ XÓA SẠCH toàn bộ Trạng thái Khóa và Hỗ trợ trên CẢ BẢN ĐỒ.
+              for (const regionId in G.regions) {
+                G.regions[regionId].command = 'none';
+              }
+            }
           }
           if (events && events.endTurn) events.endTurn();
         },

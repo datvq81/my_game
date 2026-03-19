@@ -4,6 +4,7 @@ import type { GameState, TroopCounts, MapGeometry, General } from '../game/Game'
 import '../App.css'; 
 import { MAP_CONFIG } from '../config'; 
 import { DraftScreen } from './DraftScreen';
+import { GeneralCard } from './GeneralCard';
 
 interface CustomBoardProps extends BoardProps<GameState> {
   setupData?: any;
@@ -76,6 +77,19 @@ export const Board = (props: CustomBoardProps) => {
   const { G, ctx, moves, events, setupData, playerID, matchID } = props;
 
   const hasSynced = useRef(false);
+  const [showResultModal, setShowResultModal] = useState(false);
+  useEffect(() => {
+      if (G.lastBattleResult && G.lastBattleResult.timestamp) {
+          setShowResultModal(true);
+      }
+  }, [G.lastBattleResult?.timestamp]);
+
+  useEffect(() => {
+      if ((G.activeBattle && G.activeBattle.stage === 'PREVIEW')) {
+          setShowResultModal(false);
+      }
+  }, [G.activeBattle]);
+
 
   useEffect(() => {
     if (setupData && Object.keys(G.mapGeometry).length === 0 && playerID === '0' && !hasSynced.current) {
@@ -464,40 +478,6 @@ export const Board = (props: CustomBoardProps) => {
 
   if (ctx.phase === 'GENERAL_DRAFT' && !G.isEditor) return <DraftScreen G={G} ctx={ctx} moves={moves} playerID={playerID || null} matchID={matchID} />;
 
-  // COMPONENT HIỂN THỊ THẺ BÀI TƯỚNG (YU-GI-OH STYLE)
-  const GeneralCard = ({ gen, isSelected, onClick, disabledMsg }: { gen: General, isSelected?: boolean, onClick?: () => void, disabledMsg?: string }) => {
-      return (
-          <div 
-              onClick={!disabledMsg ? onClick : undefined}
-              style={{ 
-                  width: '130px', height: '190px', 
-                  border: isSelected ? '3px solid #ff5252' : '2px solid #ffeb3b', 
-                  borderRadius: '8px', 
-                  background: '#3e2723', 
-                  position: 'relative', 
-                  display: 'flex', flexDirection: 'column', 
-                  boxShadow: isSelected ? '0 0 15px #ff5252' : '0 5px 15px rgba(0,0,0,0.8)', 
-                  overflow: 'hidden',
-                  cursor: disabledMsg ? 'not-allowed' : 'pointer',
-                  opacity: disabledMsg ? 0.4 : 1,
-                  transform: isSelected ? 'translateY(-10px)' : 'none',
-                  transition: 'all 0.2s'
-              }}
-          >
-              <div style={{ position: 'absolute', top: 0, left: 0, background: '#d32f2f', color: '#fff', width: '35px', height: '35px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottomRightRadius: '8px', fontWeight: 'bold', fontSize: '18px', borderRight: '2px solid #ffeb3b', borderBottom: '2px solid #ffeb3b', zIndex: 2 }}>{gen.power}</div>
-              <div style={{ flex: 1, background: '#795548', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '50px', borderBottom: '2px solid #ffeb3b' }}>🎴</div>
-              <div style={{ height: '65px', background: '#1a1a1a', padding: '5px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <strong style={{ color: '#ffeb3b', fontSize: '12px', textAlign: 'center', marginBottom: '2px' }}>{gen.name}</strong>
-                  {disabledMsg ? (
-                      <span style={{ color: '#ff5252', fontSize: '11px', fontWeight: 'bold', marginTop: '5px' }}>{disabledMsg}</span>
-                  ) : (
-                      <span style={{ color: '#aaa', fontSize: '10px', textAlign: 'center', lineHeight: '1.1' }}>Kỹ năng đặc biệt</span>
-                  )}
-              </div>
-          </div>
-      );
-  };
-
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden' }}>
       <style>{`
@@ -837,7 +817,7 @@ export const Board = (props: CustomBoardProps) => {
             </div>
 
             {/* KHỐI 2: MENU HÀNH ĐỘNG */}
-            <div style={{ width: '850px' }}>
+            <div style={{ width: battle.stage === 'GENERAL_SELECT' ? '1350px' : '850px', transition: 'width 0.3s ease' }}>
               
               {battle.stage === 'PREVIEW' && (
                 <div className="glass-panel" style={{ padding: '15px 20px', background: '#222', borderRadius: '10px', border: '1px solid #555' }}>
@@ -909,9 +889,22 @@ export const Board = (props: CustomBoardProps) => {
                                 })
                             )}
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <button className="game-btn btn-primary" style={{ padding: '15px 25px', background: selectedGeneralForCombat ? '#d32f2f' : '#555', cursor: selectedGeneralForCombat ? 'pointer' : 'not-allowed' }} disabled={!selectedGeneralForCombat} onClick={() => selectedGeneralForCombat && moves.selectCombatGeneral(selectedGeneralForCombat)}>🔥 CHỐT BÀI</button>
-                            <button className="game-btn btn-warning" style={{ padding: '10px', background: '#444' }} onClick={() => moves.selectCombatGeneral('NONE')}>Không dùng Tướng</button>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '120px' }}>
+                            <button 
+                                className="game-btn btn-primary" 
+                                style={{ padding: '12px 10px', fontSize: '16px', fontWeight: 'bold', background: selectedGeneralForCombat ? '#d32f2f' : '#555', cursor: selectedGeneralForCombat ? 'pointer' : 'not-allowed' }} 
+                                disabled={!selectedGeneralForCombat} 
+                                onClick={() => selectedGeneralForCombat && moves.selectCombatGeneral(selectedGeneralForCombat)}>
+                                🔥 CHỐT
+                            </button>
+                            <button 
+                                className="game-btn btn-warning" 
+                                style={{ padding: '12px 10px', fontSize: '14px', background: '#444', transition: 'all 0.2s ease' }} 
+                                onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.5)'}
+                                onMouseLeave={(e) => e.currentTarget.style.filter = 'brightness(1)'}
+                                onClick={() => moves.selectCombatGeneral('NONE')}>
+                                ❌ BỎ QUA
+                            </button>
                           </div>
                         </div>
                       )
@@ -919,53 +912,84 @@ export const Board = (props: CustomBoardProps) => {
                   </div>
                 );
               })()}
-
-              {battle.stage === 'RESULT' && battle.combatStats && (
-                <div className="glass-panel" style={{ padding: '20px', background: '#111', border: `3px solid ${battle.winner === 'ATTACKER' ? '#ff5252' : '#4CAF50'}`, textAlign: 'center' }}>
-                    <h1 style={{ color: battle.winner === 'ATTACKER' ? '#ff5252' : '#4CAF50', fontSize: '32px', margin: '0 0 15px 0' }}>
-                        {battle.winner === 'ATTACKER' ? '⚔️ PHE CÔNG THẮNG TRẬN!' : '🛡️ PHE THỦ BẢO VỆ THÀNH CÔNG!'}
-                    </h1>
-                    
-                    {/* BẢNG ĐIỂM CHI TIẾT */}
-                    <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-                        <div style={{ flex: 1, background: '#222', padding: '15px', borderRadius: '8px', borderTop: `4px solid ${playerColors[battle.attackerId]}` }}>
-                            <h3 style={{ color: playerColors[battle.attackerId], margin: '0 0 10px 0' }}>Phe Công</h3>
-                            <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}><span>Quân trực tiếp:</span> <strong>{battle.combatStats.attBase}đ</strong></div>
-                            <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}><span>Quân hỗ trợ:</span> <strong>+{battle.combatStats.attSupport}đ</strong></div>
-                            <div style={{ color: '#ffeb3b', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #444', paddingBottom: '5px', marginBottom: '5px' }}><span>Tướng ({battle.attackerGeneral && battle.attackerGeneral !== 'NONE' ? MAP_CONFIG.balance.generals.pool.find(g=>g.id===battle.attackerGeneral)?.name : 'Không'}):</span> <strong>+{battle.combatStats.attGen}đ</strong></div>
-                            <div style={{ color: '#ff5252', display: 'flex', justifyContent: 'space-between', fontSize: '20px', fontWeight: 'bold' }}><span>TỔNG:</span> <span>{battle.combatStats.attTotal}đ</span></div>
-                        </div>
-
-                        <div style={{ flex: 1, background: '#222', padding: '15px', borderRadius: '8px', borderTop: `4px solid ${playerColors[battle.defenderId]}` }}>
-                            <h3 style={{ color: playerColors[battle.defenderId], margin: '0 0 10px 0' }}>Phe Thủ</h3>
-                            <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}><span>Quân trực tiếp (gồm Thành):</span> <strong>{battle.combatStats.defBase}đ</strong></div>
-                            <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}><span>Quân hỗ trợ:</span> <strong>+{battle.combatStats.defSupport}đ</strong></div>
-                            <div style={{ color: '#ffeb3b', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #444', paddingBottom: '5px', marginBottom: '5px' }}><span>Tướng ({battle.defenderGeneral && battle.defenderGeneral !== 'NONE' ? MAP_CONFIG.balance.generals.pool.find(g=>g.id===battle.defenderGeneral)?.name : 'Không'}):</span> <strong>+{battle.combatStats.defGen}đ</strong></div>
-                            <div style={{ color: '#4CAF50', display: 'flex', justifyContent: 'space-between', fontSize: '20px', fontWeight: 'bold' }}><span>TỔNG:</span> <span>{battle.combatStats.defTotal}đ</span></div>
-                        </div>
-                    </div>
-
-                    {/* HẬU QUẢ VÀ LOGS */}
-                    <div style={{ background: '#2a2a2a', padding: '15px', borderRadius: '8px', textAlign: 'left', minHeight: '80px', maxHeight: '150px', overflowY: 'auto', marginBottom: '20px' }}>
-                        <h4 style={{ color: '#fff', margin: '0 0 10px 0' }}>📜 Nhật ký chiến trường:</h4>
-                        <ul style={{ color: '#aaa', margin: 0, paddingLeft: '20px', fontSize: '14px', lineHeight: '1.6' }}>
-                            {battle.combatStats.logs.map((log: string, idx: number) => <li key={idx}>{log}</li>)}
-                            {battle.combatStats.logs.length === 0 && <li>Không có sự kiện đặc biệt nào xảy ra.</li>}
-                        </ul>
-                    </div>
-
-                    {(battle.winner === 'ATTACKER' ? battle.attackerId : battle.defenderId) === playerID ? (
-                        <button className="game-btn btn-primary" onClick={() => moves.closeBattleResult()} style={{ padding: '15px 40px', fontSize: '20px', background: '#1e88e5' }}>XÁC NHẬN (ĐÓNG BÁO CÁO)</button>
-                    ) : (
-                        <h3 style={{ color: '#aaa' }}>Đang chờ người thắng kiểm tra và xác nhận...</h3>
-                    )}
-                </div>
-              )}
-
             </div>
           </div>
         );
       })()}
+      {showResultModal && G.lastBattleResult && G.lastBattleResult.combatStats && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.85)',
+                    zIndex: 10000,
+                    display: 'flex',       // Dùng flex để căn giữa
+                    overflowY: 'auto',     // Mở khóa cuộn chuột dọc
+                    padding: '40px 0'      // Tạo khoảng trống cách mép trên dưới màn hình
+                }}>
+                    <div className="glass-panel" style={{ 
+                        margin: 'auto',    // Tự căn giữa, nếu to quá thì đẩy scroll lên
+                        backgroundColor: '#111', 
+                        border: `3px solid ${G.lastBattleResult.winner === 'ATTACKER' ? '#ff5252' : '#4CAF50'}`,
+                        borderRadius: '10px',
+                        width: '90%',
+                        maxWidth: '800px',
+                        padding: '30px',
+                        textAlign: 'center' 
+                    }}>
+                        <h1 style={{ color: G.lastBattleResult.winner === 'ATTACKER' ? '#ff5252' : '#4CAF50', fontSize: '32px', margin: '0 0 25px 0' }}>
+                            {G.lastBattleResult.winner === 'ATTACKER' ? '⚔️ PHE CÔNG THẮNG TRẬN!' : '🛡️ PHE THỦ BẢO VỆ THÀNH CÔNG!'}
+                        </h1>
+                        
+                        {/* BẢNG ĐIỂM CHI TIẾT */}
+                        <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexDirection: 'row', flexWrap: 'wrap' }}>
+                            <div style={{ flex: '1 1 300px', background: '#222', padding: '15px', borderRadius: '8px', borderTop: `4px solid ${playerColors[G.lastBattleResult.attackerId]}` }}>
+                                <h3 style={{ color: playerColors[G.lastBattleResult.attackerId], margin: '0 0 15px 0' }}>Phe Công</h3>
+                                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân trực tiếp:</span> <strong>{G.lastBattleResult.combatStats.attBase}đ</strong></div>
+                                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân hỗ trợ:</span> <strong>+{G.lastBattleResult.combatStats.attSupport}đ</strong></div>
+                                <div style={{ color: '#ffeb3b', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '10px' }}><span>Tướng ({G.lastBattleResult.attackerGeneral && G.lastBattleResult.attackerGeneral !== 'NONE' ? MAP_CONFIG.balance.generals.pool.find(g=>g.id===G.lastBattleResult.attackerGeneral)?.name : 'Không'}):</span> <strong>+{G.lastBattleResult.combatStats.attGen}đ</strong></div>
+                                <div style={{ color: '#ff5252', display: 'flex', justifyContent: 'space-between', fontSize: '20px', fontWeight: 'bold' }}><span>TỔNG:</span> <span>{G.lastBattleResult.combatStats.attTotal}đ</span></div>
+                            </div>
+
+                            <div style={{ flex: '1 1 300px', background: '#222', padding: '15px', borderRadius: '8px', borderTop: `4px solid ${playerColors[G.lastBattleResult.defenderId]}` }}>
+                                <h3 style={{ color: playerColors[G.lastBattleResult.defenderId], margin: '0 0 15px 0' }}>Phe Thủ</h3>
+                                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân trực tiếp (gồm Thành):</span> <strong>{G.lastBattleResult.combatStats.defBase}đ</strong></div>
+                                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân hỗ trợ:</span> <strong>+{G.lastBattleResult.combatStats.defSupport}đ</strong></div>
+                                <div style={{ color: '#ffeb3b', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '10px' }}><span>Tướng ({G.lastBattleResult.defenderGeneral && G.lastBattleResult.defenderGeneral !== 'NONE' ? MAP_CONFIG.balance.generals.pool.find(g=>g.id===G.lastBattleResult.defenderGeneral)?.name : 'Không'}):</span> <strong>+{G.lastBattleResult.combatStats.defGen}đ</strong></div>
+                                <div style={{ color: '#4CAF50', display: 'flex', justifyContent: 'space-between', fontSize: '20px', fontWeight: 'bold' }}><span>TỔNG:</span> <span>{G.lastBattleResult.combatStats.defTotal}đ</span></div>
+                            </div>
+                        </div>
+
+                        {/* HẬU QUẢ VÀ LOGS */}
+                        <div style={{ background: '#2a2a2a', padding: '15px', borderRadius: '8px', textAlign: 'left', minHeight: '80px', maxHeight: '200px', overflowY: 'auto', marginBottom: '25px', border: '1px solid #444' }}>
+                            <h4 style={{ color: '#fff', margin: '0 0 10px 0' }}>📜 Nhật ký chiến trường:</h4>
+                            <ul style={{ color: '#aaa', margin: 0, paddingLeft: '20px', fontSize: '15px', lineHeight: '1.6' }}>
+                                {G.lastBattleResult.combatStats.logs.map((log: string, idx: number) => <li key={idx}>{log}</li>)}
+                                {G.lastBattleResult.combatStats.logs.length === 0 && <li>Không có sự kiện đặc biệt nào xảy ra.</li>}
+                            </ul>
+                        </div>
+
+                        {/* NÚT XÁC NHẬN (ĐÓNG CỤC BỘ) */}
+                        <div style={{ textAlign: 'center' }}>
+                            <button 
+                                className="game-btn btn-primary" 
+                                onClick={() => {
+                                    setShowResultModal(false); // 1. Tắt popup trên màn hình này
+                                    // 2. Nếu game đang chờ xác nhận kết quả, gửi lệnh cho Server đi tiếp (kích hoạt Rút lui)
+                                    if (G.activeBattle && G.activeBattle.stage === 'RESULT' && 
+                                      (G.activeBattle.attackerId === playerID || G.activeBattle.defenderId === playerID)) {
+                                        moves.closeBattleResult();
+                                    }
+                                }} 
+                                style={{ /*... giữ nguyên style cũ ...*/ }}
+                            >
+                                XÁC NHẬN ĐÓNG
+                            </button>
+                            <p style={{ color: '#888', fontSize: '12px', marginTop: '10px' }}>
+                                (Đóng bảng này không ảnh hưởng đến người chơi khác)
+                            </p>
+                        </div>
+                    </div>
+                </div>
+              )}
 
       {/* POPUP CHỌN VÙNG RÚT LUI NẰM DƯỚI ĐÁY BẢN ĐỒ */}
       {G.activeBattle && G.activeBattle.stage === 'RETREAT_SELECT' && (() => {
@@ -1310,7 +1334,7 @@ export const Board = (props: CustomBoardProps) => {
       )}
 
       {/* NÚT KẾT THÚC BƯỚC CHUYỂN XUỐNG GÓC DƯỚI BÊN PHẢI */}
-      {!G.isEditor && ctx.phase === 'MAIN_PLAY' && ctx.currentPlayer === playerID && (
+      {!G.activeBattle && !G.isEditor && ctx.phase === 'MAIN_PLAY' && ctx.currentPlayer === playerID && (
         <div style={{ position: 'fixed', bottom: 30, right: 30, zIndex: 1000 }}>
           <button 
             className="game-btn btn-warning" 
