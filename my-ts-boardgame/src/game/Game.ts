@@ -740,10 +740,19 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
             else if (G.roundStep === 'SUPPORT') G.roundStep = 'ACTION';
             else if (G.roundStep === 'ACTION') {
               G.roundStep = 'ECONOMY';
-              // ✅ TẠI ĐÂY: Người cuối cùng bấm nút "Kết thúc tấn công", chuyển lại sang bước Economy.
-              // Hệ thống sẽ XÓA SẠCH toàn bộ Trạng thái Khóa và Hỗ trợ trên CẢ BẢN ĐỒ.
+              
+              // 1. XÓA SẠCH trạng thái Khóa và Hỗ trợ trên CẢ BẢN ĐỒ
               for (const regionId in G.regions) {
                 G.regions[regionId].command = 'none';
+              }
+              
+              // 2. ✅ GIẢM THỜI GIAN NGHỈ CỦA TẤT CẢ TƯỚNG (MỌI NGƯỜI CHƠI) -1 LƯỢT
+              for (const pId in G.playerGenerals) {
+                  G.playerGenerals[pId].forEach(g => {
+                      if (g.cooldownRounds > 0 && !g.isDead) {
+                          g.cooldownRounds -= 1;
+                      }
+                  });
               }
             }
           }

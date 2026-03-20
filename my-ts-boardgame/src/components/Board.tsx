@@ -6,72 +6,13 @@ import { MAP_CONFIG } from '../config';
 import { DraftScreen } from './DraftScreen';
 import { GeneralCard } from './GeneralCard';
 
+import { checkReachabilityModes } from '../game/utils';
+import { StatsBoard } from './StatsBoard';
+import { GameOverScreen } from './GameOverScreen';
+
 interface CustomBoardProps extends BoardProps<GameState> {
   setupData?: any;
 }
-
-const checkReachabilityModes = (sourceId: string, targetId: string, G: GameState, playerId: string) => {
-  const geo = G.mapGeometry;
-  const regions = G.regions;
-  
-  let canTotMa = false;
-  let canPhao = false;
-  let canTau = false;
-
-  if (!geo[sourceId] || !geo[targetId]) return { canTotMa, canPhao, canTau };
-
-  const sourceGeo = geo[sourceId];
-  const targetGeo = geo[targetId];
-
-  if (sourceGeo.neighbors.includes(targetId)) {
-    if (targetGeo.type === 'Land' && sourceGeo.type === 'Land') {
-      canTotMa = true;
-      canPhao = true;
-    } else if (targetGeo.type === 'Water' && sourceGeo.type === 'Water') {
-      canTau = true;
-    }
-    return { canTotMa, canPhao, canTau };
-  }
-
-  if (targetGeo.type === 'Water') return { canTotMa, canPhao, canTau };
-
-  if (sourceGeo.type === 'Land') {
-    for (const nId of sourceGeo.neighbors) {
-      const nGeo = geo[nId];
-      const nData = regions[nId];
-      if (nGeo.type === 'Water' && nData && nData.owner === playerId && nData.troops.tau > 0) {
-        if (nGeo.neighbors.includes(targetId)) {
-          canPhao = true;
-          break;
-        }
-      }
-    }
-
-    const visited = new Set<string>();
-    const queue = [sourceId];
-    visited.add(sourceId);
-
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      for (const nId of geo[current].neighbors) {
-        if (nId === targetId) {
-          canTotMa = true;
-          return { canTotMa, canPhao, canTau }; 
-        }
-        if (!visited.has(nId)) {
-          const nGeo = geo[nId];
-          const nData = regions[nId];
-          if (nGeo && nGeo.type === 'Water' && nData && nData.owner === playerId && nData.troops.tau > 0) {
-            visited.add(nId);
-            queue.push(nId);
-          }
-        }
-      }
-    }
-  }
-
-  return { canTotMa, canPhao, canTau };
-};
 
 export const Board = (props: CustomBoardProps) => { 
   const { G, ctx, moves, events, setupData, playerID, matchID } = props;
@@ -489,126 +430,12 @@ export const Board = (props: CustomBoardProps) => {
 
       {/* BẢNG THỐNG KÊ (SCOREBOARD) */}
       {showStats && !G.isEditor && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
-          <h1 style={{ color: '#ffd700', textShadow: '0 2px 5px #000', marginBottom: '5px' }}>📊 BẢNG THỐNG KÊ TRẬN ĐẤU</h1>
-          <h3 style={{ color: '#fff', marginTop: 0, marginBottom: '20px' }}>
-            Mã phòng: <span style={{ color: '#4CAF50', userSelect: 'all' }}>{matchID || 'Local'}</span>
-          </h3>
-
-          <div style={{ display: 'flex', gap: '20px' }}>
-            {Object.keys(allPlayerStats).map(pId => {
-              const stats = allPlayerStats[pId];
-              const isMe = pId === playerID;
-              
-              return (
-                <div key={pId} style={{ background: 'rgba(20,20,20,0.9)', borderTop: `5px solid ${playerColors[pId]}`, borderRadius: '10px', padding: '20px', width: '280px', boxShadow: isMe ? `0 0 20px ${playerColors[pId]}60` : '0 5px 15px rgba(0,0,0,0.5)' }}>
-                  <h2 style={{ color: playerColors[pId], marginTop: 0, textAlign: 'center' }}>
-                    {isMe ? "BẠN (P" + (parseInt(pId)+1) + ")" : "P" + (parseInt(pId)+1)}
-                  </h2>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
-                    <div style={{ background: '#333', padding: '10px', borderRadius: '5px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '24px' }}>🏰</div><div style={{ color: '#aaa', fontSize: '12px' }}>Thành / Cần Win</div>
-                      <div style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold' }}>{stats.castles} <span style={{fontSize:'14px', color:'#888'}}>/ {MAP_CONFIG.balance.structures.win_condition_castles}</span></div>
-                    </div>
-                    <div style={{ background: '#333', padding: '10px', borderRadius: '5px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '24px' }}>🌾</div><div style={{ color: '#aaa', fontSize: '12px' }}>Kho lương</div>
-                      <div style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold' }}>{stats.granaries}</div>
-                    </div>
-                    <div style={{ background: '#333', padding: '10px', borderRadius: '5px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '24px' }}>💂</div><div style={{ color: '#aaa', fontSize: '12px' }}>Đạo quân / Max Đạo</div>
-                      <div style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold' }}>{stats.armyGroups} <span style={{fontSize:'14px', color:'#888'}}>/ {stats.granaries * MAP_CONFIG.balance.structures.granary_army_limit}</span></div>
-                    </div>
-                    <div style={{ background: '#333', padding: '10px', borderRadius: '5px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '24px' }}>🗺️</div><div style={{ color: '#aaa', fontSize: '12px' }}>Vùng đất sở hữu</div>
-                      <div style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold' }}>{stats.totalRegions}</div>
-                    </div>
-                  </div>
-                  <div style={{ background: '#222', padding: '10px', borderRadius: '5px' }}>
-                    <div style={{ color: '#ffd700', fontSize: '14px', marginBottom: '8px', textAlign: 'center', fontWeight: 'bold' }}>
-                        Thu nhập hiện tại: +{stats.income} Vàng / lượt
-                    </div>
-                  </div>
-                  <div style={{ background: '#222', padding: '10px', borderRadius: '5px' }}>
-                    <div style={{ color: '#aaa', fontSize: '13px', marginBottom: '8px', textAlign: 'center' }}>Đạo quân (≥2 lính): <strong style={{ color: stats.armyGroups > (stats.granaries * MAP_CONFIG.balance.structures.granary_army_limit) ? '#ff5252' : '#4CAF50' }}>{stats.armyGroups}</strong></div>
-                    <hr style={{ borderColor: '#444', margin: '5px 0 10px' }} />
-                    <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '5px' }}>Trạng thái Tướng:</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                      {stats.generals.length === 0 ? <div style={{ color: '#666', fontStyle: 'italic', fontSize: '12px', textAlign: 'center' }}>Chưa có tướng</div> : (
-                        stats.generals.map((g: any) => (
-                          <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', background: '#111', padding: '5px', borderRadius: '3px' }}>
-                            <span style={{ color: g.isDead ? '#666' : '#fff', fontSize: '12px', textDecoration: g.isDead ? 'line-through' : 'none' }}>
-                              <span style={{ color: '#ffeb3b', marginRight: '5px' }}>{g.power}đ</span>{g.name}
-                            </span>
-                            {g.isDead ? <span style={{ color: '#ff5252', fontSize: '12px' }}>Tử trận</span> : g.cooldownRounds > 0 ? <span style={{ color: '#ff9800', fontSize: '12px' }}>Nghỉ ({g.cooldownRounds})</span> : <span style={{ color: '#4CAF50', fontSize: '12px' }}>Sẵn sàng</span>}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{ marginTop: '30px', color: '#888', fontStyle: 'italic' }}>Thả phím Tab để đóng bảng</div>
-        </div>
+        <StatsBoard matchID={matchID} allPlayerStats={allPlayerStats} playerID={playerID || null} playerColors={playerColors} />
       )}
       {/* ========================================================= */}
       {/* HỆ THỐNG CẢNH BÁO WIN VÀ GAME OVER */}
       {/* ========================================================= */}
-      {(() => {
-        if (G.isEditor || ctx.phase !== 'MAIN_PLAY') return null;
-        
-        const winThreshold = MAP_CONFIG.balance.structures.win_condition_castles;
-        let highestCastles = 0;
-        let leadingPlayer = '';
-        
-        Object.keys(allPlayerStats).forEach(pId => {
-            if (allPlayerStats[pId].castles > highestCastles) {
-                highestCastles = allPlayerStats[pId].castles;
-                leadingPlayer = pId;
-            }
-        });
-
-        // NẾU GAME ĐÃ KẾT THÚC
-        if (ctx.gameover) {
-            return (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.95)', zIndex: 11000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <h1 style={{ fontSize: '60px', color: '#ffd700', margin: '0 0 10px 0', textShadow: '0 0 20px #ffd700' }}>🏆 TRẬN CHIẾN KẾT THÚC 🏆</h1>
-                    <h2 style={{ color: '#fff', fontSize: '30px', marginBottom: '40px' }}>Chúa tể thống nhất lục địa: <span style={{ color: playerColors[ctx.gameover.winner] }}>PLAYER {parseInt(ctx.gameover.winner)+1}</span></h2>
-                    
-                    <div style={{ background: '#222', padding: '30px', borderRadius: '15px', border: '2px solid #555', width: '400px' }}>
-                        <h3 style={{ color: '#aaa', margin: '0 0 20px 0', textAlign: 'center' }}>BẢNG XẾP HẠNG (SỐ THÀNH)</h3>
-                        {ctx.gameover.ranking.map((rank: any, index: number) => (
-                            <div key={rank.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '15px', background: index === 0 ? 'rgba(255, 215, 0, 0.2)' : '#111', borderLeft: `5px solid ${playerColors[rank.id]}`, marginBottom: '10px', borderRadius: '5px' }}>
-                                <strong style={{ color: playerColors[rank.id], fontSize: '20px' }}>#{index + 1} - Player {parseInt(rank.id)+1}</strong>
-                                <strong style={{ color: '#fff', fontSize: '20px' }}>{rank.castles} 🏰</strong>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-        }
-
-        // NẾU CÒN 1 THÀNH (X-1)
-        if (highestCastles === winThreshold - 1) {
-            return (
-                <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', background: 'rgba(211,47,47,0.95)', padding: '15px 30px', borderRadius: '30px', color: '#fff', fontSize: '20px', fontWeight: 'bold', zIndex: 9000, boxShadow: '0 0 30px red', border: '2px solid #ffeb3b', animation: 'pulse-target 1s infinite', pointerEvents: 'none' }}>
-                    🚨 BÁO ĐỘNG: Player {parseInt(leadingPlayer)+1} sắp chiến thắng ({highestCastles}/{winThreshold} Thành)! 🚨
-                </div>
-            );
-        }
-        
-        // NẾU CÒN 2 THÀNH (X-2)
-        if (highestCastles === winThreshold - 2) {
-            return (
-                <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,152,0,0.85)', padding: '10px 20px', borderRadius: '20px', color: '#fff', fontWeight: 'bold', zIndex: 9000, pointerEvents: 'none' }}>
-                    ⚠️ Lưu ý: Player {parseInt(leadingPlayer)+1} đang vươn lên dẫn đầu ({highestCastles}/{winThreshold} Thành).
-                </div>
-            );
-        }
-
-        return null;
-      })()}
+      <GameOverScreen ctx={ctx} G={G} allPlayerStats={allPlayerStats} playerColors={playerColors} />
       
       {/* ========================================================= */}
       {/* GIAO DIỆN CHIẾN TRANH HỢP NHẤT (UNIFIED BATTLE OVERLAY) */}
@@ -943,7 +770,10 @@ export const Board = (props: CustomBoardProps) => {
                         <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexDirection: 'row', flexWrap: 'wrap' }}>
                             <div style={{ flex: '1 1 300px', background: '#222', padding: '15px', borderRadius: '8px', borderTop: `4px solid ${playerColors[G.lastBattleResult.attackerId]}` }}>
                                 <h3 style={{ color: playerColors[G.lastBattleResult.attackerId], margin: '0 0 15px 0' }}>Phe Công</h3>
-                                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân trực tiếp:</span> <strong>{G.lastBattleResult.combatStats.attBase}đ</strong></div>
+                                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <span>Quân trực tiếp:</span> 
+                                    <strong>{(G.lastBattleResult.combatStats.attTotal || 0) - (G.lastBattleResult.combatStats.attSupport || 0) - (G.lastBattleResult.combatStats.attGen || 0)}đ</strong>
+                                </div>
                                 <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân hỗ trợ:</span> <strong>+{G.lastBattleResult.combatStats.attSupport}đ</strong></div>
                                 <div style={{ color: '#ffeb3b', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '10px' }}><span>Tướng ({G.lastBattleResult.attackerGeneral && G.lastBattleResult.attackerGeneral !== 'NONE' ? MAP_CONFIG.balance.generals.pool.find(g=>g.id===G.lastBattleResult.attackerGeneral)?.name : 'Không'}):</span> <strong>+{G.lastBattleResult.combatStats.attGen}đ</strong></div>
                                 <div style={{ color: '#ff5252', display: 'flex', justifyContent: 'space-between', fontSize: '20px', fontWeight: 'bold' }}><span>TỔNG:</span> <span>{G.lastBattleResult.combatStats.attTotal}đ</span></div>
@@ -951,7 +781,10 @@ export const Board = (props: CustomBoardProps) => {
 
                             <div style={{ flex: '1 1 300px', background: '#222', padding: '15px', borderRadius: '8px', borderTop: `4px solid ${playerColors[G.lastBattleResult.defenderId]}` }}>
                                 <h3 style={{ color: playerColors[G.lastBattleResult.defenderId], margin: '0 0 15px 0' }}>Phe Thủ</h3>
-                                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân trực tiếp (gồm Thành):</span> <strong>{G.lastBattleResult.combatStats.defBase}đ</strong></div>
+                                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <span>Quân trực tiếp (gồm Thành):</span> 
+                                    <strong>{G.lastBattleResult.combatStats.defBase}đ</strong>
+                                </div>
                                 <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân hỗ trợ:</span> <strong>+{G.lastBattleResult.combatStats.defSupport}đ</strong></div>
                                 <div style={{ color: '#ffeb3b', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '10px' }}><span>Tướng ({G.lastBattleResult.defenderGeneral && G.lastBattleResult.defenderGeneral !== 'NONE' ? MAP_CONFIG.balance.generals.pool.find(g=>g.id===G.lastBattleResult.defenderGeneral)?.name : 'Không'}):</span> <strong>+{G.lastBattleResult.combatStats.defGen}đ</strong></div>
                                 <div style={{ color: '#4CAF50', display: 'flex', justifyContent: 'space-between', fontSize: '20px', fontWeight: 'bold' }}><span>TỔNG:</span> <span>{G.lastBattleResult.combatStats.defTotal}đ</span></div>

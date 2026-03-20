@@ -41,7 +41,8 @@ function App() {
       game: customGame,
       board: WrappedBoard, 
       numPlayers: appState === 'editor' ? 1 : numPlayers,
-      multiplayer: appState === 'editor' ? Local() : SocketIO({ server: 'https://my-game-raxg.onrender.com' }), //https://my-game-raxg.onrender.com
+      // multiplayer: appState === 'editor' ? Local() : SocketIO({ server: 'http://localhost:8000' }),
+      multiplayer: appState === 'editor' ? Local() : SocketIO({ server: 'https://my-game-raxg.onrender.com' }),
       debug: false,
     }); 
 

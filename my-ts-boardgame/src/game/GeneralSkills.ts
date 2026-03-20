@@ -117,8 +117,22 @@ export const applyPostCombatSkills = (
         }
     };
 
-    if (attackerGen) attackerGen.cooldownRounds = gCfg.base_cooldown;
-    if (defenderGen) defenderGen.cooldownRounds = gCfg.base_cooldown;
+    if (attackerGen) {
+        if (winner === 'ATTACKER') {
+            attackerGen.cooldownRounds = gCfg.base_cooldown; // Thắng -> Vào trạng thái nghỉ
+        } else {
+            attackerGen.isDead = true; // Thua -> Chết hẳn
+            logs?.push(`☠️ Tướng Công [${attackerGen.name}] đã tử trận nơi sa trường!`);
+        }
+    }
+    if (defenderGen) {
+        if (winner === 'DEFENDER') {
+            defenderGen.cooldownRounds = gCfg.base_cooldown; // Thắng -> Vào trạng thái nghỉ
+        } else {
+            defenderGen.isDead = true; // Thua -> Chết hẳn
+            logs?.push(`☠️ Tướng Thủ [${defenderGen.name}] đã tử trận khi thành vỡ!`);
+        }
+    }
 
     // ================= XỬ LÝ KỸ NĂNG PHE CÔNG =================
     if (isAttActive) {

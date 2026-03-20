@@ -33,7 +33,7 @@ export const MAP_CONFIG = {
       castle_defense_bonus: 2, // Điểm cộng thêm cho phe thủ khi có Thành
       castle_cost_troop: 2,    // Số lính Tốt bị hi sinh làm lính canh khi xây Thành
       granary_army_limit: 2,   // Số đạo quân tối đa mỗi Kho Lương nuôi được
-      win_condition_castles: 7
+      win_condition_castles: 2
     },
 
     // 4. Kinh tế (Thu nhập đầu hiệp)
@@ -52,7 +52,7 @@ export const MAP_CONFIG = {
     // 6. Cấu hình Tướng
     generals: {
       skills: {
-        base_cooldown: 1,              // Số lượt phải nghỉ sau khi xuất trận
+        base_cooldown: 2,              // Số lượt phải nghỉ sau khi xuất trận
         G4_4_damage_reduction: 1,      // G4_4: Số điểm lính được miễn tử
         G3_1_castle_defense_bonus: 2,  // G3_1: Điểm buff thêm khi thủ thành
         G2_2_ship_power_override: 2,   // G2_2: Sức mạnh thuyền được nâng lên
