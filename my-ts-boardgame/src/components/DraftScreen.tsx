@@ -137,6 +137,20 @@ export const DraftScreen: React.FC<DraftScreenProps> = ({ G, ctx, moves, playerI
       position: 'relative',
       overflow: 'hidden'
     }}>
+      
+      {/* KHỐI MÃ PHÒNG CHỐNG BỊ XÓA NHẦM */}
+      <div style={{
+        position: 'absolute', top: 20, left: 20, zIndex: 100,
+        background: 'rgba(0,0,0,0.8)', padding: '10px 20px', 
+        borderRadius: '8px', border: '1px solid #555',
+        boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
+      }}>
+        <span style={{ color: '#aaa', fontSize: '14px' }}>Mã phòng: </span>
+        <span style={{ color: '#ffd700', fontSize: '18px', fontWeight: 'bold', userSelect: 'all', letterSpacing: '1px' }}>
+          {matchID || 'Local'}
+        </span>
+      </div>
+
       {/* HEADER BANNER */}
       <div style={{
         textAlign: 'center', padding: '15px', 
@@ -164,7 +178,7 @@ export const DraftScreen: React.FC<DraftScreenProps> = ({ G, ctx, moves, playerI
             {leftPlayers.map(pId => <PlayerRoster key={pId} pId={pId} />)}
         </div>
 
-        {/* CỘT GIỮA: BỂ TƯỚNG (CHỈ HIỂN THỊ VÒNG HIỆN TẠI, KHÔNG CẦN CUỘN) */}
+        {/* CỘT GIỮA: BỂ TƯỚNG */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             <h3 style={{ 
                 margin: '0 0 30px 0', color: '#ffeb3b', 
@@ -174,15 +188,20 @@ export const DraftScreen: React.FC<DraftScreenProps> = ({ G, ctx, moves, playerI
                 ⭐ Tướng {targetPower} Điểm 
             </h3>
             
-            {/* LƯỚI 2x2 CỐ ĐỊNH (GRID) - TRÁNH LỖI 3-1 */}
+            {/* DÀN LÀM 1 HÀNG NGANG ĐỂ KHÔNG BỊ LẸM XUỐNG DƯỚI */}
             <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(2, 1fr)', // Ép cứng 2 cột
-                gap: '25px', 
-                justifyItems: 'center'
+                display: 'flex', 
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                justifyContent: 'center', 
+                gap: '15px' 
             }}>
               {generalsAtPower.map((g: General) => (
-                <div key={g.id} style={{ transform: 'scale(0.95)' }}>
+                <div key={g.id} style={{ 
+                    transform: 'scale(0.9)',
+                    transformOrigin: 'top center',
+                    margin: '-15px'
+                }}>
                     <GeneralCard 
                         gen={g} 
                         isSelected={false} 

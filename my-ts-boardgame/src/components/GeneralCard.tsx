@@ -10,16 +10,17 @@ interface GeneralCardProps {
 
 // Component phụ hiển thị từng ô kỹ năng
 const SkillBox: React.FC<{ label: string; text?: string; color: string; labelColor: string }> = ({ label, text, color, labelColor }) => {
-    if (!text) return null; // Không có text thì ẩn luôn để các ô khác giãn ra
+    if (!text) return null; // Không có text thì ẩn luôn
     return (
         <div style={{ 
             background: 'rgba(0,0,0,0.4)', 
             border: `1px solid ${color}`,
             borderRadius: '6px',
             display: 'flex',
-            flex: 1, // KÍCH HOẠT TÍNH NĂNG TỰ ĐỘNG CO GIÃN THEO CHIỀU DỌC
+            minHeight: '40px',
+            maxHeight: '90px', // Không cho phép phình to quá mức, quá 90px sẽ tự hiện thanh cuộn
             overflow: 'hidden',
-            minHeight: '40px' // Đảm bảo không bị ép quá dẹt
+            marginBottom: '4px' // Tạo khoảng cách nhẹ giữa các kỹ năng
         }}>
             <div style={{ 
                 background: color,
@@ -160,7 +161,7 @@ export const GeneralCard: React.FC<GeneralCardProps> = ({
                         wordWrap: 'break-word',
                         overflow: 'hidden',
                         display: '-webkit-box',
-                        WebkitLineClamp: 2, // Cho phép tên rớt xuống 2 dòng
+                        WebkitLineClamp: 2, 
                         WebkitBoxOrient: 'vertical'
                     }}>
                         {gen.name}
@@ -187,21 +188,38 @@ export const GeneralCard: React.FC<GeneralCardProps> = ({
                 />
             </div>
 
-            {/* 3. KHỐI KỸ NĂNG (TỰ ĐỘNG CHIA ĐỀU CHIỀU CAO) */}
+            {/* 3. KHỐI KỸ NĂNG (DỒN LÊN TRÊN + CÓ WATERMARK BÊN DƯỚI) */}
             <div style={{ 
                 display: 'flex', 
                 flexDirection: 'column', 
-                gap: '6px', 
-                padding: '8px', 
-                flex: 1, // Chiếm toàn bộ phần khoảng trống còn lại
+                padding: '10px', 
+                flex: 1, 
+                justifyContent: 'flex-start', // Ép kỹ năng dồn hết lên trên cùng
+                position: 'relative' // Để đặt icon mờ watermark
             }}>
-                {/* Các ô sẽ tự động co giãn bằng nhau. Nếu không có text, hàm SkillBox sẽ ẩn nó đi */}
-                <SkillBox label="A" text={gen.skillA || gen.desc} color={colors.skillA} labelColor={colors.textOnLight} />
-                <SkillBox label="W" text={gen.skillW} color={colors.skillW} labelColor={colors.textOnLight} />
-                <SkillBox label="L" text={gen.skillL} color={colors.skillL} labelColor={colors.textOnLight} />
+                
+                {/* Hình mờ trang trí lấp khoảng trống (Watermark) */}
+                <div style={{ 
+                    position: 'absolute', 
+                    bottom: '10px', 
+                    right: '10px', 
+                    fontSize: '60px', 
+                    opacity: 0.05, 
+                    pointerEvents: 'none',
+                    filter: 'grayscale(100%)'
+                }}>
+                    ⚔️
+                </div>
+
+                {/* Gói kỹ năng nổi lên trên watermark */}
+                <div style={{ zIndex: 2 }}>
+                    <SkillBox label="A" text={gen.skillA || gen.desc} color={colors.skillA} labelColor={colors.textOnLight} />
+                    <SkillBox label="W" text={gen.skillW} color={colors.skillW} labelColor={colors.textOnLight} />
+                    <SkillBox label="L" text={gen.skillL} color={colors.skillL} labelColor={colors.textOnLight} />
+                </div>
                 
                 {!gen.skillA && !gen.desc && !gen.skillW && !gen.skillL && (
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontStyle: 'italic', color: '#666', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontStyle: 'italic', color: '#666', fontSize: '13px', height: '100%', zIndex: 2 }}>
                         Tướng không có kỹ năng đặc biệt.
                     </div>
                 )}
