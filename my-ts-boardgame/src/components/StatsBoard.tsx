@@ -1,4 +1,3 @@
-// src/components/StatsBoard.tsx
 import React from 'react';
 import { MAP_CONFIG } from '../config';
 
@@ -7,10 +6,11 @@ interface StatsBoardProps {
   allPlayerStats: Record<string, any>;
   playerID: string | null;
   playerColors: Record<string, string>;
+  winCondition: number; // NHẬN THÊM WIN CONDITION Ở ĐÂY
   onClose?: () => void;
 }
 
-export const StatsBoard: React.FC<StatsBoardProps> = ({ matchID, allPlayerStats, playerID, playerColors }) => {
+export const StatsBoard: React.FC<StatsBoardProps> = ({ matchID, allPlayerStats, playerID, playerColors, winCondition }) => {
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
       <h1 style={{ color: '#ffd700', textShadow: '0 2px 5px #000', marginBottom: '5px' }}>📊 BẢNG THỐNG KÊ TRẬN ĐẤU</h1>
@@ -31,7 +31,7 @@ export const StatsBoard: React.FC<StatsBoardProps> = ({ matchID, allPlayerStats,
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
                 <div style={{ background: '#333', padding: '10px', borderRadius: '5px', textAlign: 'center' }}>
                   <div style={{ fontSize: '24px' }}>🏰</div><div style={{ color: '#aaa', fontSize: '12px' }}>Thành / Cần Win</div>
-                  <div style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold' }}>{stats.castles} <span style={{fontSize:'14px', color:'#888'}}>/ {MAP_CONFIG.balance.structures.win_condition_castles}</span></div>
+                  <div style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold' }}>{stats.castles} <span style={{fontSize:'14px', color:'#888'}}>/ {winCondition}</span></div>
                 </div>
                 <div style={{ background: '#333', padding: '10px', borderRadius: '5px', textAlign: 'center' }}>
                   <div style={{ fontSize: '24px' }}>🌾</div><div style={{ color: '#aaa', fontSize: '12px' }}>Kho lương</div>

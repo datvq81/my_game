@@ -11,7 +11,7 @@ function App() {
   
   // Dữ liệu dùng để tạo phòng
   const [setupData, setSetupData] = useState<any>(null);
-  const [numPlayers, setNumPlayers] = useState<number>(2);
+  const [numPlayers, setNumPlayers] = useState<number>(4); // Default 4
   const [playerID, setPlayerID] = useState<string>('0'); 
   
   // Quản lý ID Phòng (Room ID)
@@ -41,8 +41,8 @@ function App() {
       game: customGame,
       board: WrappedBoard, 
       numPlayers: appState === 'editor' ? 1 : numPlayers,
-      // multiplayer: appState === 'editor' ? Local() : SocketIO({ server: 'http://localhost:8000' }),
-      multiplayer: appState === 'editor' ? Local() : SocketIO({ server: 'https://my-game-raxg.onrender.com' }),
+      multiplayer: appState === 'editor' ? Local() : SocketIO({ server: 'http://localhost:8000' }),
+      // multiplayer: appState === 'editor' ? Local() : SocketIO({ server: 'https://my-game-raxg.onrender.com' }),
       debug: false,
     }); 
 
@@ -103,15 +103,7 @@ function App() {
                 <p style={{ color: '#aaa', fontSize: '14px', margin: 0 }}>
                   Bạn là <strong>Chủ phòng (Player 1)</strong>. Hãy cài đặt thông số và chọn Bản đồ ở màn hình bên phải để bắt đầu.
                 </p>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <span style={{ fontWeight: 'bold' }}>👥 Số người chơi:</span>
-                  <select value={numPlayers} onChange={(e) => setNumPlayers(parseInt(e.target.value))} style={{ padding: '8px', background: '#333', color: 'white', border: '1px solid #777', borderRadius: '4px' }}>
-                    <option value={2}>2 Người chơi</option>
-                    <option value={3}>3 Người chơi</option>
-                    <option value={4}>4 Người chơi</option>
-                    <option value={1}>1 Người (Test Solo)</option>
-                  </select>
-                </label>
+                {/* Đã xóa Dropdown chọn số người chơi ở đây vì Lobby.tsx đã quản lý việc này */}
               </div>
             ) : (
                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -132,7 +124,7 @@ function App() {
                 <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                   <span style={{ fontWeight: 'bold' }}>👤 Bạn là Player:</span>
                   <select value={playerID} onChange={(e) => setPlayerID(e.target.value)} style={{ padding: '8px', background: '#333', color: 'white', border: '1px solid #777', borderRadius: '4px' }}>
-                    <option value="0">P1 (Đỏ) - Chủ phòng</option> {/* ĐÃ THÊM P1 VÀO ĐÂY */}
+                    <option value="0">P1 (Đỏ) - Chủ phòng</option>
                     <option value="1">P2 (Xanh lá)</option>
                     <option value="2">P3 (Xanh dương)</option>
                     <option value="3">P4 (Vàng)</option>
@@ -158,10 +150,12 @@ function App() {
           <div style={{ flex: 1, position: 'relative' }}>
             {lobbyMode === 'host' ? (
               <Lobby 
-                onStartGame={(map) => { 
+                onStartGame={(configData) => { 
                   setMatchID(generateRandomRoomID());
                   setPlayerID('0'); 
-                  setSetupData(map); 
+                  // Nhận số người chơi từ cấu hình Lobby truyền sang
+                  setNumPlayers(configData.numPlayers || 4); 
+                  setSetupData(configData); 
                   setAppState('playing'); 
                 }} 
                 onEnterEditor={() => { 

@@ -430,7 +430,7 @@ export const Board = (props: CustomBoardProps) => {
 
       {/* BẢNG THỐNG KÊ (SCOREBOARD) */}
       {showStats && !G.isEditor && (
-        <StatsBoard matchID={matchID} allPlayerStats={allPlayerStats} playerID={playerID || null} playerColors={playerColors} />
+        <StatsBoard matchID={matchID} allPlayerStats={allPlayerStats} playerID={playerID || null} playerColors={playerColors} winCondition={G.matchConfig.winConditionCastles} />
       )}
       {/* ========================================================= */}
       {/* HỆ THỐNG CẢNH BÁO WIN VÀ GAME OVER */}
@@ -1052,22 +1052,33 @@ export const Board = (props: CustomBoardProps) => {
                             const canBuildCastle = G.reserves[ctx.currentPlayer] >= MAP_CONFIG.balance.cost.castle && G.regions[activeRegion].troops.tot >= MAP_CONFIG.balance.structures.castle_cost_troop;
                             const tracker = G.setupDataTracker[ctx.currentPlayer];
                             const castlesBuilt = tracker?.castlesBuilt || 0;
-                            const isAdjToOwnCastle = G.mapGeometry[activeRegion].neighbors.some(n => G.regions[n].owner === ctx.currentPlayer && G.regions[n].hasCastle);
-                            const isRestricted = castlesBuilt >= 2 && isAdjToOwnCastle;
+                            
+                            // LẤY GIỚI HẠN TỪ matchConfig
+                            const maxCastles = G.matchConfig.maxCastlesToBuild;
+                            const isAdjToAnyCastle = G.mapGeometry[activeRegion].neighbors.some(n => G.regions[n].hasCastle);
+                            
+                            // Điều kiện cấm: Hoặc đã xây đủ quota, hoặc bị dính liền kề với 1 thành bất kỳ
+                            const isRestricted = (castlesBuilt >= maxCastles) || isAdjToAnyCastle;
 
                             return (
                               <button 
                                 className="game-btn btn-warning" 
                                 style={{ width: '100%', opacity: (canBuildCastle && !isRestricted) ? 1 : 0.4 }} 
                                 onClick={() => {
-                                  if (isRestricted) {
-                                    alert("❌ Thành tự xây lần thứ 3 trở đi BẮT BUỘC phải cách Thành cũ của bạn ít nhất 1 ô!");
+                                  if (castlesBuilt >= maxCastles) {
+                                      alert(`❌ Lãnh chúa đã tự xây tối đa ${maxCastles} Thành trì! Muốn mở rộng lãnh thổ, xin hãy phát binh xâm lược!`);
+                                      return;
+                                  }
+                                  if (isAdjToAnyCastle) {
+                                    alert("❌ Thành trì BẮT BUỘC phải xây cách Thành khác ít nhất 1 ô!");
                                     return;
                                   }
                                   if (canBuildCastle) moves.buildStructure(activeRegion, 'castle');
                                 }}
                               >
                                 🏰 Thành trì ({MAP_CONFIG.balance.cost.castle}đ + {MAP_CONFIG.balance.structures.castle_cost_troop} Bộ binh)
+                                <br/>
+                                <span style={{fontSize: '11px'}}>Đã xây: {castlesBuilt}/{maxCastles}</span>
                               </button>
                             );
                           })()}

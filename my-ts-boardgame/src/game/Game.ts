@@ -24,10 +24,13 @@ export interface General {
 }
 
 export type RoundStep = 'ECONOMY' | 'SUPPORT' | 'ACTION';
-// export type BattleStage = 'PREVIEW' | 'SUPPORT_CALL' | 'GENERAL_SELECT' | 'RESOLUTION' | 'RETREAT_SELECT';
 export type BattleStage = 'PREVIEW' | 'SUPPORT_CALL' | 'GENERAL_SELECT' | 'RETREAT_SELECT' | 'RESULT';
 export interface GameState {
   isEditor: boolean;
+  matchConfig: {
+      maxCastlesToBuild: number;
+      winConditionCastles: number;
+  };
   mapGeometry: Record<string, MapGeometry>;
   regions: Record<string, RegionData>;
   reserves: Record<string, number>;
@@ -65,7 +68,6 @@ export interface GameState {
   } | null;
   pendingG42?: { regionId: string, playerId: string } | null;
   setupDataTracker: Record<string, any>;
-
   lastBattleResult?: any;
 }
 
@@ -80,10 +82,9 @@ const checkNeutralRegions = (G: GameState) => {
     const r = G.regions[regionId];
     if (r.owner !== null) {
       const totalTroops = r.troops.tot + r.troops.ma + r.troops.phao + r.troops.tau;
-      // Nếu hết lính và không có thành -> Thành đất hoang và MỞ KHÓA
       if (totalTroops === 0 && !r.hasCastle) {
           r.owner = null;
-          r.command = 'none'; // Sửa lỗi đất hoang bị khóa ở đây
+          r.command = 'none';
       }
     }
   }
@@ -99,8 +100,8 @@ const finalizeBattle = (G: GameState, battle: any, winner: 'ATTACKER' | 'DEFENDE
   battle.stage = 'RESULT';
   G.lastBattleResult = { 
       ...battle, 
-      winner: winner, // Đã sửa lỗi thiếu winner cho UI ở lần hỗ trợ trước
-      timestamp: Date.now() // Tem thời gian để React biết có trận mới
+      winner: winner,
+      timestamp: Date.now()
   };
 };
 
@@ -132,9 +133,8 @@ export const getValidRetreatRegions = (G: GameState, battle: any, playerId: stri
             let canSettle = false;
 
             if (nGeo.type === 'Land') {
-                canSettle = true; // Lên bờ thì được ở lại, nhưng không được đi xuyên qua đất nữa
+                canSettle = true;
             } else if (nGeo.type === 'Water') {
-                // Xuống nước thì phải có thuyền (của tàn quân mang theo, hoặc của phe mình đang đỗ sẵn)
                 if (hasBoats || (nData.owner === playerId && nData.troops.tau > 0)) {
                     canTraverse = true;
                     canSettle = true;
@@ -142,18 +142,17 @@ export const getValidRetreatRegions = (G: GameState, battle: any, playerId: stri
             }
 
             if (canSettle && (nData.owner === null || nData.owner === playerId)) {
-                // KIỂM TRA LUẬT KHO LƯƠNG TẠI Ô NÀY
                 let armyGroups = 0;
                 let granaries = 0;
                 for (const id in G.regions) {
                     if (G.regions[id].owner === playerId) {
                         if (G.regions[id].hasGranary) granaries++;
                         let futureTotal = G.regions[id].troops.tot + G.regions[id].troops.ma + G.regions[id].troops.phao + G.regions[id].troops.tau;
-                        if (id === nId) futureTotal += totalTroops; // Giả sử tàn quân nhập vào đây
+                        if (id === nId) futureTotal += totalTroops;
                         if (futureTotal >= 2) armyGroups++;
                     }
                 }
-                if (nData.owner === null && totalTroops >= 2) armyGroups++; // Nếu chiếm ô trống thành đạo quân mới
+                if (nData.owner === null && totalTroops >= 2) armyGroups++;
 
                 if (armyGroups <= granaries * MAP_CONFIG.balance.structures.granary_army_limit) {
                     validRegions.add(nId);
@@ -205,7 +204,6 @@ const executeBattleResolution = (G: GameState, events?: any) => {
     const r = G.regions[nId];
     const nGeo = G.mapGeometry[nId];
 
-    // Đất không thể hỗ trợ cho trận đánh dưới Nước
     if (targetGeo.type === 'Water' && nGeo.type === 'Land') return;
 
     if (r.command === 'supporting' && r.owner !== null) {
@@ -228,7 +226,6 @@ const executeBattleResolution = (G: GameState, events?: any) => {
   const finalAttSupport = Math.floor(rawAttSupport * MAP_CONFIG.balance.combat.support_multiplier);
   const finalDefSupport = Math.floor(rawDefSupport * MAP_CONFIG.balance.combat.support_multiplier);
 
-  // LƯU CÁC CHỈ SỐ ĐỂ ĐƯA LÊN BẢNG THỐNG KÊ CHI TIẾT
   battle.combatStats = {
     attBase: attackerPower,
     defBase: defenderPower,
@@ -277,22 +274,18 @@ const executeBattleResolution = (G: GameState, events?: any) => {
     
     let defSurviving = { ...originalDefenderTroops };
     
-    // ✅ KIỂM TRA: PHE THỦ CHỈ CÓ ĐÚNG 1 TỐT
     const isOnlyOneTotDefending = originalDefenderTroops.tot === 1 && originalDefenderTroops.ma === 0 && originalDefenderTroops.phao === 0 && originalDefenderTroops.tau === 0;
 
     if (isOnlyOneTotDefending) {
-        // Nếu chỉ có 1 Tốt thủ thành mà thua -> Chết luôn
         defSurviving.tot = 0;
         battle.combatStats!.logs.push(`☠️ Phe Thủ chỉ có 1 Tốt lẻ loi phòng vệ, thảm bại và tử trận hoàn toàn!`);
     } else {
         const keepPhao = (defenderGen?.id === 'G3_2' && !state.defenderGenDisabled);
         if (!keepPhao) defSurviving.phao = 0;
         
-        // Mã ngã ngựa biến thành Tốt
         defSurviving.tot += defSurviving.ma;
         defSurviving.ma = 0;
         
-        // Chia một nửa số Tốt rút lui (làm tròn lên)
         const originalTotCount = defSurviving.tot;
         defSurviving.tot = Math.ceil(defSurviving.tot / 2);
         
@@ -327,22 +320,18 @@ const executeBattleResolution = (G: GameState, events?: any) => {
     
     let attSurviving = { ...troops };
     
-    // ✅ KIỂM TRA: PHE CÔNG CHỈ CÓ ĐÚNG 1 TỐT
     const isOnlyOneTotAttacking = troops.tot === 1 && troops.ma === 0 && troops.phao === 0 && troops.tau === 0;
 
     if (isOnlyOneTotAttacking) {
-        // Nếu chỉ có 1 Tốt đi đánh mà thua -> Chết luôn
         attSurviving.tot = 0;
         battle.combatStats!.logs.push(`☠️ Phe Công mang 1 Tốt lẻ loi đi đánh, thảm bại và bị tiêu diệt hoàn toàn tại trận!`);
     } else {
         const keepPhao = (attackerGen?.id === 'G3_2' && !state.attackerGenDisabled);
         if (!keepPhao) attSurviving.phao = 0;
         
-        // Mã ngã ngựa biến thành Tốt
         attSurviving.tot += attSurviving.ma;
         attSurviving.ma = 0;
         
-        // Chia một nửa số Tốt rút lui (làm tròn lên)
         const originalAttTotCount = attSurviving.tot;
         attSurviving.tot = Math.ceil(attSurviving.tot / 2);
 
@@ -361,7 +350,6 @@ const executeBattleResolution = (G: GameState, events?: any) => {
   if (totalRetreating > 0) {
     battle.retreatingTroops = retreatingTroops;
 
-    // Gọi hàm tính đường lui hợp lệ
     const validRetreats = getValidRetreatRegions(G, battle, retreatingPlayerId);
     battle.validRetreats = validRetreats;
 
@@ -382,7 +370,6 @@ const executeBattleResolution = (G: GameState, events?: any) => {
         }
     } else {
         if (validRetreats.length > 0) {
-            // Ưu tiên lui về ô xuất phát, nếu ô đó bị lỗi thì lấy ô hợp lệ đầu tiên
             const autoId = validRetreats.includes(battle.sourceId) ? battle.sourceId : validRetreats[0];
             const tr = G.regions[autoId];
             tr.owner = retreatingPlayerId;
@@ -410,6 +397,10 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
     let mapGeometry: Record<string, MapGeometry> = {};
     let regions: Record<string, RegionData> = {};
 
+    // Nhận dữ liệu thiết lập phòng từ Lobby
+    const maxCastles = setupData?.maxCastles ?? 3;
+    const winCastles = setupData?.winCastles ?? 6;
+
     if (setupData && setupData.isEditor) {
       isEditor = true;
       mapGeometry = generateSandboxMap();
@@ -420,7 +411,12 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
     }
 
     return { 
-      isEditor, mapGeometry, regions,
+      isEditor, 
+      matchConfig: {
+          maxCastlesToBuild: maxCastles,
+          winConditionCastles: winCastles
+      },
+      mapGeometry, regions,
       reserves: { '0': 0, '1': 0, '2': 0, '3': 0 },
       actionsLeft: { '0': 6, '1': 6, '2': 6, '3': 6 },
       roundStep: 'ECONOMY',
@@ -563,7 +559,6 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
               if (r.owner === p) {
                 income += MAP_CONFIG.balance.economy.castle_income; 
                 if (r.hasGranary) income += MAP_CONFIG.balance.economy.granary_income; 
-                // XÓA ĐOẠN RESET LỆNH Ở ĐÂY RỒI ĐỂ TRÁNH RESET LẺ TẺ
               }
             });
             G.reserves[p] += income;
@@ -639,10 +634,13 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
             
             const tracker = G.setupDataTracker[p];
             const castlesBuilt = tracker.castlesBuilt || 0;
-            if (castlesBuilt >= 2) {
-              const isAdjToOwnCastle = G.mapGeometry[regionId].neighbors.some(n => G.regions[n].owner === p && G.regions[n].hasCastle);
-              if (isAdjToOwnCastle) return INVALID_MOVE;
-            }
+            
+            // CHẶN BẰNG LUẬT MỚI: Dựa vào cấu hình phòng
+            if (castlesBuilt >= G.matchConfig.maxCastlesToBuild) return INVALID_MOVE;
+
+            // KIỂM TRA LUẬT CŨ: Không xây liền kề với Thành bất kỳ
+            const isAdjToAnyCastle = G.mapGeometry[regionId].neighbors.some(n => G.regions[n].hasCastle);
+            if (isAdjToAnyCastle) return INVALID_MOVE;
 
             G.reserves[p] -= costs.castle;
             r.troops.tot -= MAP_CONFIG.balance.structures.castle_cost_troop; 
@@ -650,7 +648,6 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
             tracker.castlesBuilt = castlesBuilt + 1; 
           } else {
             if (r.hasGranary) return INVALID_MOVE;
-            // ÉP LUẬT: Phải ở trong ô có Thành hoặc kề Thành của mình
             const isAdjToOwnCastle = r.hasCastle || G.mapGeometry[regionId].neighbors.some(n => G.regions[n].owner === p && G.regions[n].hasCastle);
             if (!isAdjToOwnCastle) return INVALID_MOVE;
 
@@ -741,12 +738,10 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
             else if (G.roundStep === 'ACTION') {
               G.roundStep = 'ECONOMY';
               
-              // 1. XÓA SẠCH trạng thái Khóa và Hỗ trợ trên CẢ BẢN ĐỒ
               for (const regionId in G.regions) {
                 G.regions[regionId].command = 'none';
               }
               
-              // 2. ✅ GIẢM THỜI GIAN NGHỈ CỦA TẤT CẢ TƯỚNG (MỌI NGƯỜI CHƠI) -1 LƯỢT
               for (const pId in G.playerGenerals) {
                   G.playerGenerals[pId].forEach(g => {
                       if (g.cooldownRounds > 0 && !g.isDead) {
@@ -882,7 +877,6 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
           const p = ctx.currentPlayer;
           if (battle.retreatingPlayerId !== p) return INVALID_MOVE;
 
-          // THAY THẾ CÁC LỆNH CHECK CŨ BẰNG MẢNG VALID RETREATS
           if (!battle.validRetreats || !battle.validRetreats.includes(regionId)) {
               return INVALID_MOVE;
           }
@@ -941,7 +935,9 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
     },
   },
   endIf: ({ G, ctx }) => {
-    const winCastles = MAP_CONFIG.balance.structures.win_condition_castles;
+    // SỬ DỤNG GIÁ TRỊ TỪ SETUP MATCH THAY VÌ HARDCODE
+    const winCastles = G.matchConfig.winConditionCastles;
+    
     const playerCastles: Record<string, number> = {};
     for (let i = 0; i < ctx.numPlayers; i++) playerCastles[i.toString()] = 0;
 

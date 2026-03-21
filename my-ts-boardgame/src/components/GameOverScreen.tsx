@@ -1,6 +1,4 @@
-// src/components/GameOverScreen.tsx
 import React, { useState, useEffect } from 'react';
-import { MAP_CONFIG } from '../config';
 
 interface GameOverScreenProps {
   ctx: any;
@@ -10,15 +8,14 @@ interface GameOverScreenProps {
 }
 
 export const GameOverScreen: React.FC<GameOverScreenProps> = ({ ctx, G, allPlayerStats, playerColors }) => {
-    // 1. GỌI TẤT CẢ HOOKS Ở TRÊN CÙNG (Quy tắc bắt buộc của React)
     const [warningTurnTrig, setWarningTurnTrig] = useState<number>(-1);
     const [warningPlayerTrig, setWarningPlayerTrig] = useState<string>("");
 
-    const winThreshold = MAP_CONFIG.balance.structures.win_condition_castles;
+    // LẤY TRỰC TIẾP TỪ G.matchConfig
+    const winThreshold = G.matchConfig?.winConditionCastles || 999;
     let highestCastles = 0;
     let leadingPlayer = '';
     
-    // Tính toán chỉ số (Cần cho useEffect bên dưới)
     Object.keys(allPlayerStats).forEach(pId => {
         if (allPlayerStats[pId].castles > highestCastles) {
             highestCastles = allPlayerStats[pId].castles;
@@ -26,7 +23,6 @@ export const GameOverScreen: React.FC<GameOverScreenProps> = ({ ctx, G, allPlaye
         }
     });
 
-    // 2. USE_EFFECT NẰM TRÊN CÁC LỆNH EARLY RETURN
     useEffect(() => {
         if (G.isEditor || ctx.gameover || ctx.phase !== 'MAIN_PLAY') return;
 
@@ -40,13 +36,9 @@ export const GameOverScreen: React.FC<GameOverScreenProps> = ({ ctx, G, allPlaye
         }
     }, [highestCastles, leadingPlayer, ctx.turn, ctx.gameover, ctx.phase, G.isEditor, warningTurnTrig, warningPlayerTrig, winThreshold]);
 
-
-    // 3. BÂY GIỜ MỚI ĐƯỢC PHÉP CHẶN HIỂN THỊ BẰNG EARLY RETURN
     if (G.isEditor) return null;
     if (!ctx.gameover && ctx.phase !== 'MAIN_PLAY') return null;
 
-
-    // 4. HIỂN THỊ MÀN HÌNH GAME OVER (NẾU ĐÃ KẾT THÚC)
     if (ctx.gameover) {
         return (
             <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.95)', zIndex: 11000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -66,7 +58,6 @@ export const GameOverScreen: React.FC<GameOverScreenProps> = ({ ctx, G, allPlaye
         );
     }
 
-    // 5. HIỂN THỊ CẢNH BÁO WIN BÊN PHẢI (CHỈ HIỆN ĐÚNG LƯỢT ĐÓ)
     const showWarningOnThatTurnOnly = highestCastles >= winThreshold - 2 && 
                                       warningTurnTrig === ctx.turn && 
                                       warningPlayerTrig === leadingPlayer;

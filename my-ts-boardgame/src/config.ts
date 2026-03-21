@@ -33,7 +33,7 @@ export const MAP_CONFIG = {
       castle_defense_bonus: 2, // Điểm cộng thêm cho phe thủ khi có Thành
       castle_cost_troop: 2,    // Số lính Tốt bị hi sinh làm lính canh khi xây Thành
       granary_army_limit: 2,   // Số đạo quân tối đa mỗi Kho Lương nuôi được
-      win_condition_castles: 2
+      win_condition_castles: 7
     },
 
     // 4. Kinh tế (Thu nhập đầu hiệp)
