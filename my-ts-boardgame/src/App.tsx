@@ -36,13 +36,15 @@ function App() {
     const WrappedBoard = (props: any) => {
       return <Board {...props} setupData={setupData} />;
     };
+    
+    // Đọc URL Server từ biến môi trường (Vite), nếu không có thì gọi về localhost:8000
+    const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:8000';
 
     const GameClient = Client({
       game: customGame,
       board: WrappedBoard, 
       numPlayers: appState === 'editor' ? 1 : numPlayers,
-      // multiplayer: appState === 'editor' ? Local() : SocketIO({ server: 'http://localhost:8000' }),
-      multiplayer: appState === 'editor' ? Local() : SocketIO({ server: 'https://my-game-raxg.onrender.com' }),
+      multiplayer: appState === 'editor' ? Local() : SocketIO({ server: serverUrl }),
       debug: false,
     }); 
 
@@ -103,7 +105,6 @@ function App() {
                 <p style={{ color: '#aaa', fontSize: '14px', margin: 0 }}>
                   Bạn là <strong>Chủ phòng (Player 1)</strong>. Hãy cài đặt thông số và chọn Bản đồ ở màn hình bên phải để bắt đầu.
                 </p>
-                {/* Đã xóa Dropdown chọn số người chơi ở đây vì Lobby.tsx đã quản lý việc này */}
               </div>
             ) : (
                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -153,7 +154,6 @@ function App() {
                 onStartGame={(configData) => { 
                   setMatchID(generateRandomRoomID());
                   setPlayerID('0'); 
-                  // Nhận số người chơi từ cấu hình Lobby truyền sang
                   setNumPlayers(configData.numPlayers || 4); 
                   setSetupData(configData); 
                   setAppState('playing'); 
