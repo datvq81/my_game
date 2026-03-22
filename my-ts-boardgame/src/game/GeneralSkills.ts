@@ -46,6 +46,7 @@ export const applyPreCombatSkills = (G: GameState, battle: any, attackerGen?: Ge
 
     // --- KỸ NĂNG PHE CÔNG ---
     if (isAttActive) {
+        // G4_4: Giảm 1 lính chết (Đúng ý user)
         if (attackerGen.id === 'G4_4') state.attackerDamageTakenMod -= gCfg.G4_4_damage_reduction; 
         if (attackerGen.id === 'G2_1') state.nullifyDefenderGenPower = true; 
         if (attackerGen.id === 'G2_2' && battle.attackingTroops.tau > 0) state.attackerTauPower = gCfg.G2_2_ship_power_override; 
@@ -56,6 +57,7 @@ export const applyPreCombatSkills = (G: GameState, battle: any, attackerGen?: Ge
 
     // --- KỸ NĂNG PHE THỦ ---
     if (isDefActive) {
+        // G4_4: Giảm 1 lính chết (Đúng ý user)
         if (defenderGen.id === 'G4_4') state.defenderDamageTakenMod -= gCfg.G4_4_damage_reduction; 
         if (defenderGen.id === 'G3_1' && targetRegion.hasCastle) state.defenderBonusFlat += gCfg.G3_1_castle_defense_bonus;
         if (defenderGen.id === 'G3_4') state.defenderNoLossOnWin = true; 
@@ -74,7 +76,7 @@ export const applyPostCombatSkills = (
     G: GameState, battle: any, winner: 'ATTACKER' | 'DEFENDER',
     attackerGen?: General, defenderGen?: General, state?: CombatState,
     retreatRegionId?: string,
-    logs?: string[] // BỔ SUNG MẢNG LOGS
+    logs?: string[]
 ) => {
     const targetRegion = G.regions[battle.targetId];
     
@@ -84,14 +86,16 @@ export const applyPostCombatSkills = (
     const gCfg = MAP_CONFIG.balance.generals.skills;
     let triggerG42 = false;
 
-    const killRandomEnemyGen = (enemyId: string) => {
-        const enemyGens = G.playerGenerals[enemyId].filter(g => !g.isDead);
+    const killRandomEnemyGen = (enemyId: string, excludeGenId?: string) => {
+        // Lọc ra các tướng địch chưa chết VÀ KHÁC với tướng đang tham chiến
+        const enemyGens = G.playerGenerals[enemyId].filter(g => !g.isDead && g.id !== excludeGenId);
+        
         if (enemyGens.length > 0) {
             const target = enemyGens[Math.floor(Math.random() * enemyGens.length)];
             target.isDead = true;
             logs?.push(`🗡 Ám sát thành công tướng địch: [${target.name}]!`);
         } else {
-            logs?.push(`🗡 Kích hoạt ám sát nhưng địch không có tướng nào để giết.`);
+            logs?.push(`🗡 Kích hoạt ám sát nhưng địch không còn tướng nào khác ở hậu phương để giết.`);
         }
     };
     
@@ -119,17 +123,17 @@ export const applyPostCombatSkills = (
 
     if (attackerGen) {
         if (winner === 'ATTACKER') {
-            attackerGen.cooldownRounds = gCfg.base_cooldown; // Thắng -> Vào trạng thái nghỉ
+            attackerGen.cooldownRounds = gCfg.base_cooldown; 
         } else {
-            attackerGen.isDead = true; // Thua -> Chết hẳn
+            attackerGen.isDead = true; 
             logs?.push(`☠️ Tướng Công [${attackerGen.name}] đã tử trận nơi sa trường!`);
         }
     }
     if (defenderGen) {
         if (winner === 'DEFENDER') {
-            defenderGen.cooldownRounds = gCfg.base_cooldown; // Thắng -> Vào trạng thái nghỉ
+            defenderGen.cooldownRounds = gCfg.base_cooldown; 
         } else {
-            defenderGen.isDead = true; // Thua -> Chết hẳn
+            defenderGen.isDead = true; 
             logs?.push(`☠️ Tướng Thủ [${defenderGen.name}] đã tử trận khi thành vỡ!`);
         }
     }
@@ -137,16 +141,43 @@ export const applyPostCombatSkills = (
     // ================= XỬ LÝ KỸ NĂNG PHE CÔNG =================
     if (isAttActive) {
         if (winner === 'ATTACKER') {
-            if (attackerGen.id === 'G4_1' && targetRegion.troops.tot > 0) { targetRegion.troops.tot--; targetRegion.troops.ma++; logs?.push(`🐎 1 Tốt phe Công đã tiến hóa thành Mã.`);} 
-            if (attackerGen.id === 'G4_2') triggerG42 = true;
-            if (attackerGen.id === 'G4_3' && retreatRegionId) { 
-                if (G.regions[retreatRegionId].troops.tot > 0) { G.regions[retreatRegionId].troops.tot--; logs?.push(`🏹 Quân đuổi theo giết thêm 1 Tốt địch đang tháo chạy.`); }
+            // G4_1: Chỉ 1 Tốt duy nhất được lên Mã
+            if (attackerGen.id === 'G4_1' && targetRegion.troops.tot > 0) { 
+                targetRegion.troops.tot--; 
+                targetRegion.troops.ma++; 
+                logs?.push(`🐎 1 Tốt phe Công đã được phong cấp thành Mã.`);
+            } 
+            
+            // G4_2: Chỉ kích hoạt khi phe Công thắng
+            if (attackerGen.id === 'G4_2') {
+                triggerG42 = true;
+                logs?.push(`⚡ Tướng Blitz Commander sẵn sàng phát động đợt tấn công tiếp theo (Miễn phí lệnh)!`);
             }
-            if (attackerGen.id === 'G1_2') killRandomEnemyGen(battle.defenderId);
+
+            // G4_3: Kiểm tra tàn quân chạy trốn CÓ TỐT HAY KHÔNG
+            if (attackerGen.id === 'G4_3' && retreatRegionId && battle.retreatingTroops) { 
+                if (battle.retreatingTroops.tot > 0) { 
+                    battle.retreatingTroops.tot--; // Trừ trong data tàn quân
+                    G.regions[retreatRegionId].troops.tot--; // Trừ thực tế trên bản đồ
+                    logs?.push(`🏹 Quân đuổi theo bắn hạ 1 Tốt địch đang tháo chạy.`); 
+                } else {
+                    logs?.push(`🏹 Kẻ địch tháo chạy nhưng không có Tốt nào, kỹ năng Blood Reaper vô tác dụng.`);
+                }
+            }
+            
+            if (attackerGen.id === 'G1_2') killRandomEnemyGen(battle.defenderId, defenderGen?.id);
             if (attackerGen.id === 'G1_3' && defenderGen) stealEnemyGen(battle.attackerId, battle.defenderId, defenderGen);
             
         } else { // CÔNG THUA
-            if (attackerGen.id === 'G1_2' && defenderGen) { defenderGen.cooldownRounds += gCfg.G1_2_assassinate_cooldown; logs?.push(`☠️ Tướng thủ bị ám sát hụt, hoảng sợ phải nghỉ thêm 1 lượt.`); }
+            if (attackerGen.id === 'G1_2') {
+            // Nếu có tướng thủ đối đầu, phạt cooldown nó
+            if (defenderGen) {
+                defenderGen.cooldownRounds += gCfg.G1_2_assassinate_cooldown;
+                logs?.push(`☠️ Tướng thủ [${defenderGen.name}] bị Sát thủ tẩm độc: Cooldown +${gCfg.G1_2_assassinate_cooldown} lượt!`);
+            }
+                // Vừa tẩm độc kẻ thắng, vừa ám sát thêm 1 đứa khác ở hậu phương địch
+                killRandomEnemyGen(battle.defenderId, defenderGen?.id);
+            }
             if (attackerGen.id === 'G1_3' && defenderGen) { defenderGen.cooldownRounds = 0; logs?.push(`✨ Tướng thủ đánh lùi được pháp sư, nhuệ khí tăng cao lập tức hồi chiêu.`); }
             if (attackerGen.id === 'G1_4') handleG1_4_Revive(battle.attackerId, defenderGen?.id);
         }
@@ -155,12 +186,35 @@ export const applyPostCombatSkills = (
     // ================= XỬ LÝ KỸ NĂNG PHE THỦ =================
     if (isDefActive) {
         if (winner === 'DEFENDER') {
-            if (defenderGen.id === 'G4_1' && targetRegion.troops.tot > 0) { targetRegion.troops.tot--; targetRegion.troops.ma++; logs?.push(`🐎 1 Tốt phe Thủ đã tiến hóa thành Mã.`); }
-            if (defenderGen.id === 'G4_2') triggerG42 = true;
-            if (defenderGen.id === 'G4_3' && retreatRegionId) { 
-                if (G.regions[retreatRegionId].troops.tot > 0) { G.regions[retreatRegionId].troops.tot--; logs?.push(`🏹 Bắn tên giết thêm 1 Tốt địch đang tháo chạy.`); }
+            // G4_1: Chỉ 1 Tốt duy nhất được lên Mã
+            if (defenderGen.id === 'G4_1' && targetRegion.troops.tot > 0) { 
+                targetRegion.troops.tot--; 
+                targetRegion.troops.ma++; 
+                logs?.push(`🐎 1 Tốt phe Thủ đã được phong cấp thành Mã.`); 
             }
-            if (defenderGen.id === 'G1_2') killRandomEnemyGen(battle.attackerId);
+            
+            // Đã xóa G4_2 ở đây vì Defender không được phép dùng Blitz Commander
+            
+            // G4_3: Kiểm tra tàn quân phe Công (chạy trốn) CÓ TỐT HAY KHÔNG
+            if (defenderGen.id === 'G4_3' && retreatRegionId && battle.retreatingTroops) { 
+                if (battle.retreatingTroops.tot > 0) { 
+                    battle.retreatingTroops.tot--; // Trừ trong data tàn quân
+                    G.regions[retreatRegionId].troops.tot--; // Trừ thực tế trên bản đồ
+                    logs?.push(`🏹 Bắn tên giết thêm 1 Tốt địch đang tháo chạy.`); 
+                } else {
+                    logs?.push(`🏹 Tàn quân địch không có Tốt nào, kỹ năng Blood Reaper vô tác dụng.`);
+                }
+            }
+
+            if (defenderGen.id === 'G1_2') {
+                // Nếu có tướng công đối đầu, phạt cooldown nó
+                if (attackerGen) {
+                    attackerGen.cooldownRounds += gCfg.G1_2_assassinate_cooldown;
+                    logs?.push(`☠️ Tướng công [${attackerGen.name}] bị Sát thủ tẩm độc: Cooldown +${gCfg.G1_2_assassinate_cooldown} lượt!`);
+                }
+                // Vừa tẩm độc kẻ thắng, vừa ám sát thêm 1 đứa khác ở hậu phương địch
+                killRandomEnemyGen(battle.attackerId, attackerGen?.id);
+            }
             if (defenderGen.id === 'G1_3' && attackerGen) stealEnemyGen(battle.defenderId, battle.attackerId, attackerGen);
             
         } else { // THỦ THUA

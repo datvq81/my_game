@@ -27,10 +27,6 @@ export type RoundStep = 'ECONOMY' | 'SUPPORT' | 'ACTION';
 export type BattleStage = 'PREVIEW' | 'SUPPORT_CALL' | 'GENERAL_SELECT' | 'RETREAT_SELECT' | 'RESULT';
 export interface GameState {
   isEditor: boolean;
-  matchConfig: {
-      maxCastlesToBuild: number;
-      winConditionCastles: number;
-  };
   mapGeometry: Record<string, MapGeometry>;
   regions: Record<string, RegionData>;
   reserves: Record<string, number>;
@@ -68,6 +64,7 @@ export interface GameState {
   } | null;
   pendingG42?: { regionId: string, playerId: string } | null;
   setupDataTracker: Record<string, any>;
+
   lastBattleResult?: any;
 }
 
@@ -100,8 +97,8 @@ const finalizeBattle = (G: GameState, battle: any, winner: 'ATTACKER' | 'DEFENDE
   battle.stage = 'RESULT';
   G.lastBattleResult = { 
       ...battle, 
-      winner: winner,
-      timestamp: Date.now()
+      winner: winner, 
+      timestamp: Date.now() 
   };
 };
 
@@ -133,7 +130,10 @@ export const getValidRetreatRegions = (G: GameState, battle: any, playerId: stri
             let canSettle = false;
 
             if (nGeo.type === 'Land') {
-                canSettle = true;
+                // LUẬT MỚI: NẾU CÒN THUYỀN THÌ CẤM TUYỆT ĐỐI LÊN BỜ
+                if (!hasBoats) {
+                    canSettle = true; 
+                }
             } else if (nGeo.type === 'Water') {
                 if (hasBoats || (nData.owner === playerId && nData.troops.tau > 0)) {
                     canTraverse = true;
@@ -148,11 +148,11 @@ export const getValidRetreatRegions = (G: GameState, battle: any, playerId: stri
                     if (G.regions[id].owner === playerId) {
                         if (G.regions[id].hasGranary) granaries++;
                         let futureTotal = G.regions[id].troops.tot + G.regions[id].troops.ma + G.regions[id].troops.phao + G.regions[id].troops.tau;
-                        if (id === nId) futureTotal += totalTroops;
+                        if (id === nId) futureTotal += totalTroops; 
                         if (futureTotal >= 2) armyGroups++;
                     }
                 }
-                if (nData.owner === null && totalTroops >= 2) armyGroups++;
+                if (nData.owner === null && totalTroops >= 2) armyGroups++; 
 
                 if (armyGroups <= granaries * MAP_CONFIG.balance.structures.granary_army_limit) {
                     validRegions.add(nId);
@@ -183,7 +183,7 @@ const executeBattleResolution = (G: GameState, events?: any) => {
   let attPhao = state.attackerPhaoPower ?? (targetRegion.hasCastle ? pcfg.phao_castle : pcfg.phao_base);
   let attackerPower = troops.tot * pcfg.tot + troops.ma * pcfg.ma + troops.tau * state.attackerTauPower + troops.phao * attPhao;
   attackerPower += state.attackerBonusFlat;
-  if (attackerGen && !state.nullifyAttackerGenPower && !attackerGen.isDead && attackerGen.cooldownRounds === 0 && !state.attackerGenDisabled) {
+  if (attackerGen && !state.nullifyAttackerGenPower && !attackerGen.isDead && attackerGen.cooldownRounds === 0) {
     attackerPower += attackerGen.power;
   }
 
@@ -191,7 +191,7 @@ const executeBattleResolution = (G: GameState, events?: any) => {
   let defenderPower = targetRegion.troops.tot * pcfg.tot + targetRegion.troops.ma * pcfg.ma + targetRegion.troops.tau * state.defenderTauPower + targetRegion.troops.phao * defPhao;
   if (targetRegion.hasCastle) defenderPower += MAP_CONFIG.balance.structures.castle_defense_bonus;
   defenderPower += state.defenderBonusFlat;
-  if (defenderGen && !state.nullifyDefenderGenPower && !defenderGen.isDead && defenderGen.cooldownRounds === 0 && !state.defenderGenDisabled) {
+  if (defenderGen && !state.nullifyDefenderGenPower && !defenderGen.isDead && defenderGen.cooldownRounds === 0) {
     defenderPower += defenderGen.power;
   }
 
@@ -204,21 +204,38 @@ const executeBattleResolution = (G: GameState, events?: any) => {
     const r = G.regions[nId];
     const nGeo = G.mapGeometry[nId];
 
+    // Nước không thể hỗ trợ trực tiếp lên bờ
     if (targetGeo.type === 'Water' && nGeo.type === 'Land') return;
 
     if (r.command === 'supporting' && r.owner !== null) {
       const phaoPower = r.hasCastle ? pcfg.phao_castle : pcfg.phao_base;
       let tauPower = pcfg.tau;
+      
+      // G2_2: Chỉ buff thuyền nếu đó là thuyền của chính chủ nhân lá bài
       if (r.owner === battle.attackerId && state.attackerTauPower > pcfg.tau) tauPower = state.attackerTauPower;
       if (r.owner === battle.defenderId && state.defenderTauPower > pcfg.tau) tauPower = state.defenderTauPower;
       
       let spPower = r.troops.tot * pcfg.tot + r.troops.ma * pcfg.ma + r.troops.tau * tauPower + r.troops.phao * phaoPower;
 
-      if (state.attackerForceSupport && attackerGen?.id === 'G1_1') rawAttSupport += spPower;
-      else if (state.defenderForceSupport && defenderGen?.id === 'G1_1') rawDefSupport += spPower;
-      else {
-        if (!state.blockDefenderSupport && (r.owner === battle.attackerId || battle.supportVotes?.[r.owner] === 'ATTACKER')) rawAttSupport += spPower;
-        else if (!state.blockAttackerSupport && (r.owner === battle.defenderId || battle.supportVotes?.[r.owner] === 'DEFENDER')) rawDefSupport += spPower;
+      // XỬ LÝ KỸ NĂNG G1_1 & G2_4
+      if (state.attackerForceSupport && attackerGen?.id === 'G1_1') {
+          // G1_1 của phe Công: Bắt ép toàn bộ ô xung quanh phải cộng điểm cho mình
+          rawAttSupport += spPower;
+      } else if (state.defenderForceSupport && defenderGen?.id === 'G1_1') {
+          // G1_1 của phe Thủ: Bắt ép toàn bộ ô xung quanh phải cộng điểm cho mình
+          rawDefSupport += spPower;
+      } else {
+          // Logic viện trợ bình thường
+          const isAttackerSupport = r.owner === battle.attackerId || battle.supportVotes?.[r.owner] === 'ATTACKER';
+          const isDefenderSupport = r.owner === battle.defenderId || battle.supportVotes?.[r.owner] === 'DEFENDER';
+
+          // G2_4: Chặn viện trợ đối phương
+          if (isAttackerSupport && !state.blockAttackerSupport) {
+              rawAttSupport += spPower;
+          }
+          if (isDefenderSupport && !state.blockDefenderSupport) {
+              rawDefSupport += spPower;
+          }
       }
     }
   });
@@ -231,9 +248,8 @@ const executeBattleResolution = (G: GameState, events?: any) => {
     defBase: defenderPower,
     attSupport: finalAttSupport,
     defSupport: finalDefSupport,
-    attGen: (attackerGen && !state.nullifyAttackerGenPower && !attackerGen.isDead && attackerGen.cooldownRounds === 0 && !state.attackerGenDisabled ? attackerGen.power : 0),
-    defGen: (defenderGen && !state.nullifyDefenderGenPower && !defenderGen.isDead && defenderGen.cooldownRounds === 0 && !state.defenderGenDisabled ? defenderGen.power : 0),
-    attTotal: attackerPower + finalAttSupport,
+attGen: (attackerGen && !state.nullifyAttackerGenPower && !attackerGen.isDead && attackerGen.cooldownRounds === 0 ? attackerGen.power : 0),
+    defGen: (defenderGen && !state.nullifyDefenderGenPower && !defenderGen.isDead && defenderGen.cooldownRounds === 0 ? defenderGen.power : 0),    attTotal: attackerPower + finalAttSupport,
     defTotal: defenderPower + finalDefSupport,
     logs: []
   };
@@ -274,11 +290,15 @@ const executeBattleResolution = (G: GameState, events?: any) => {
     
     let defSurviving = { ...originalDefenderTroops };
     
-    const isOnlyOneTotDefending = originalDefenderTroops.tot === 1 && originalDefenderTroops.ma === 0 && originalDefenderTroops.phao === 0 && originalDefenderTroops.tau === 0;
+    // LUẬT MỚI: KIỂM TRA TỔNG QUÂN = 1 (DÙ LÀ TỐT HAY THUYỀN)
+    const totalOriginalDefending = originalDefenderTroops.tot + originalDefenderTroops.ma + originalDefenderTroops.phao + originalDefenderTroops.tau;
 
-    if (isOnlyOneTotDefending) {
+    if (totalOriginalDefending === 1) {
         defSurviving.tot = 0;
-        battle.combatStats!.logs.push(`☠️ Phe Thủ chỉ có 1 Tốt lẻ loi phòng vệ, thảm bại và tử trận hoàn toàn!`);
+        defSurviving.ma = 0;
+        defSurviving.phao = 0;
+        defSurviving.tau = 0;
+        battle.combatStats!.logs.push(`☠️ Phe Thủ chỉ có 1 quân lẻ loi phòng vệ, thảm bại và tử trận hoàn toàn!`);
     } else {
         const keepPhao = (defenderGen?.id === 'G3_2' && !state.defenderGenDisabled);
         if (!keepPhao) defSurviving.phao = 0;
@@ -289,8 +309,17 @@ const executeBattleResolution = (G: GameState, events?: any) => {
         const originalTotCount = defSurviving.tot;
         defSurviving.tot = Math.ceil(defSurviving.tot / 2);
         
-        if (originalTotCount > 0) {
-            battle.combatStats!.logs.push(`☠️ Tàn quân phe Thủ bị truy sát, chỉ còn ${defSurviving.tot} Tốt sống sót tháo chạy.`);
+        // LUẬT MỚI: THUYỀN CŨNG BỊ CHIA ĐÔI
+        const originalTauCount = defSurviving.tau;
+        defSurviving.tau = Math.ceil(defSurviving.tau / 2);
+
+        if (originalTotCount > 0 || originalTauCount > 0) {
+            let logMsg = `☠️ Tàn quân phe Thủ bị truy sát, chỉ còn`;
+            if (defSurviving.tot > 0) logMsg += ` ${defSurviving.tot} Tốt`;
+            if (defSurviving.tot > 0 && defSurviving.tau > 0) logMsg += ` và`;
+            if (defSurviving.tau > 0) logMsg += ` ${defSurviving.tau} Thuyền`;
+            logMsg += ` sống sót tháo chạy.`;
+            battle.combatStats!.logs.push(logMsg);
         }
     }
     
@@ -320,11 +349,15 @@ const executeBattleResolution = (G: GameState, events?: any) => {
     
     let attSurviving = { ...troops };
     
-    const isOnlyOneTotAttacking = troops.tot === 1 && troops.ma === 0 && troops.phao === 0 && troops.tau === 0;
+    // LUẬT MỚI: KIỂM TRA TỔNG QUÂN = 1 (DÙ LÀ TỐT HAY THUYỀN)
+    const totalOriginalAttacking = troops.tot + troops.ma + troops.phao + troops.tau;
 
-    if (isOnlyOneTotAttacking) {
+    if (totalOriginalAttacking === 1) {
         attSurviving.tot = 0;
-        battle.combatStats!.logs.push(`☠️ Phe Công mang 1 Tốt lẻ loi đi đánh, thảm bại và bị tiêu diệt hoàn toàn tại trận!`);
+        attSurviving.ma = 0;
+        attSurviving.phao = 0;
+        attSurviving.tau = 0;
+        battle.combatStats!.logs.push(`☠️ Phe Công mang 1 quân lẻ loi đi đánh, thảm bại và bị tiêu diệt hoàn toàn tại trận!`);
     } else {
         const keepPhao = (attackerGen?.id === 'G3_2' && !state.attackerGenDisabled);
         if (!keepPhao) attSurviving.phao = 0;
@@ -335,8 +368,17 @@ const executeBattleResolution = (G: GameState, events?: any) => {
         const originalAttTotCount = attSurviving.tot;
         attSurviving.tot = Math.ceil(attSurviving.tot / 2);
 
-        if (originalAttTotCount > 0) {
-            battle.combatStats!.logs.push(`☠️ Đội hình phe Công vỡ trận, chỉ còn ${attSurviving.tot} Tốt dạt về tuyến sau.`);
+        // LUẬT MỚI: THUYỀN CŨNG BỊ CHIA ĐÔI
+        const originalAttTauCount = attSurviving.tau;
+        attSurviving.tau = Math.ceil(attSurviving.tau / 2);
+
+        if (originalAttTotCount > 0 || originalAttTauCount > 0) {
+            let logMsg = `☠️ Đội hình phe Công vỡ trận, chỉ còn`;
+            if (attSurviving.tot > 0) logMsg += ` ${attSurviving.tot} Tốt`;
+            if (attSurviving.tot > 0 && attSurviving.tau > 0) logMsg += ` và`;
+            if (attSurviving.tau > 0) logMsg += ` ${attSurviving.tau} Thuyền`;
+            logMsg += ` dạt về tuyến sau.`;
+            battle.combatStats!.logs.push(logMsg);
         }
     }
 
@@ -397,10 +439,6 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
     let mapGeometry: Record<string, MapGeometry> = {};
     let regions: Record<string, RegionData> = {};
 
-    // Nhận dữ liệu thiết lập phòng từ Lobby
-    const maxCastles = setupData?.maxCastles ?? 3;
-    const winCastles = setupData?.winCastles ?? 6;
-
     if (setupData && setupData.isEditor) {
       isEditor = true;
       mapGeometry = generateSandboxMap();
@@ -411,12 +449,7 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
     }
 
     return { 
-      isEditor, 
-      matchConfig: {
-          maxCastlesToBuild: maxCastles,
-          winConditionCastles: winCastles
-      },
-      mapGeometry, regions,
+      isEditor, mapGeometry, regions,
       reserves: { '0': 0, '1': 0, '2': 0, '3': 0 },
       actionsLeft: { '0': 6, '1': 6, '2': 6, '3': 6 },
       roundStep: 'ECONOMY',
@@ -634,13 +667,10 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
             
             const tracker = G.setupDataTracker[p];
             const castlesBuilt = tracker.castlesBuilt || 0;
-            
-            // CHẶN BẰNG LUẬT MỚI: Dựa vào cấu hình phòng
-            if (castlesBuilt >= G.matchConfig.maxCastlesToBuild) return INVALID_MOVE;
-
-            // KIỂM TRA LUẬT CŨ: Không xây liền kề với Thành bất kỳ
-            const isAdjToAnyCastle = G.mapGeometry[regionId].neighbors.some(n => G.regions[n].hasCastle);
-            if (isAdjToAnyCastle) return INVALID_MOVE;
+            if (castlesBuilt >= 2) {
+              const isAdjToOwnCastle = G.mapGeometry[regionId].neighbors.some(n => G.regions[n].owner === p && G.regions[n].hasCastle);
+              if (isAdjToOwnCastle) return INVALID_MOVE;
+            }
 
             G.reserves[p] -= costs.castle;
             r.troops.tot -= MAP_CONFIG.balance.structures.castle_cost_troop; 
@@ -935,9 +965,7 @@ export const createHexConquestGame = (setupData?: any): Game<GameState> => ({
     },
   },
   endIf: ({ G, ctx }) => {
-    // SỬ DỤNG GIÁ TRỊ TỪ SETUP MATCH THAY VÌ HARDCODE
-    const winCastles = G.matchConfig.winConditionCastles;
-    
+    const winCastles = MAP_CONFIG.balance.structures.win_condition_castles;
     const playerCastles: Record<string, number> = {};
     for (let i = 0; i < ctx.numPlayers; i++) playerCastles[i.toString()] = 0;
 

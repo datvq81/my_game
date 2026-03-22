@@ -134,3 +134,62 @@ h1, h2, h3 {
 .troop-icon:nth-child(3n) {
   animation-delay: 1s;
 }
+
+/* ========================================= */
+/* CSS HIỆU ỨNG LẬT BÀI (FLIP CARD)      */
+/* ========================================= */
+
+/* 1. Container chính: Khởi tạo không gian 3D và độ sâu (Perspective) */
+.flip-card-container {
+    background-color: transparent;
+    width: 150px; /* Độ rộng lá bài */
+    height: 210px; /* Độ cao lá bài */
+    perspective: 1000px; /* Cực kỳ quan trọng để tạo độ nổi 3D */
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+/* 2. Thẻ xoay bên trong: Nơi chứa 2 mặt của lá bài */
+.flip-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.8s; /* Thời gian lật bài */
+    transform-style: preserve-3d; /* Giữ 3D cho các con bên trong */
+}
+
+/* 3. Logic kích hoạt: Khi lớp cha xuất hiện, lớp con sẽ xoay 180 độ */
+.flip-card-container.trigger-flip .flip-card-inner {
+    transform: rotateY(180deg); /* Xoay theo trục dọc */
+}
+
+/* 4. Định nghĩa chung cho Mặt Trước và Mặt Sau */
+.flip-card-front, .flip-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden; /* Cực kỳ quan trọng: Giấu mặt sau khi xoay */
+    backface-visibility: hidden;
+    border-radius: 8px;
+    border: 2px solid #555;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+    overflow: hidden;
+}
+
+/* 5. Mặt Trước (Mystery Card - Lúc chưa lật) */
+.flip-card-front {
+    background: radial-gradient(circle, #2a2a2a, #1a1a1a); /* Màu nền tối bí ẩn */
+    color: #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #444;
+}
+
+/* 6. Mặt Sau (General Card - Lúc lật ra rồi) */
+.flip-card-back {
+    transform: rotateY(180deg); /* Mặc định mặt này đã xoay sẵn để chuẩn bị hiện ra */
+    border: none; /* GeneralCard đã có border riêng */
+}

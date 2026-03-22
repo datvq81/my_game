@@ -44,7 +44,10 @@ export const Board = (props: CustomBoardProps) => {
   const [menuPos, setMenuPos] = useState<{ x: number, y: number } | null>(null);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [activeRegion, setActiveRegion] = useState<string | null>(null);
-  const [actionMenu, setActionMenu] = useState<'main' | 'recruit' | 'build' | 'move_target' | 'move_select' | null>(null);
+  
+  // THÊM 'disband' VÀO STATE CỦA MENU
+  const [actionMenu, setActionMenu] = useState<'main' | 'recruit' | 'build' | 'move_target' | 'move_select' | 'disband' | null>(null);
+  
   const [moveTarget, setMoveTarget] = useState<string | null>(null);
   const [moveSelection, setMoveSelection] = useState<TroopCounts>({ tot: 0, ma: 0, phao: 0, tau: 0 });
   const [recruitSelection, setRecruitSelection] = useState<TroopCounts>({ tot: 0, ma: 0, phao: 0, tau: 0 });
@@ -107,7 +110,7 @@ export const Board = (props: CustomBoardProps) => {
       const gold = G.reserves?.[p] || 0;
       const generals = G.playerGenerals?.[p] || [];
 
-      stats[p] = { castles, granaries, armyGroups, totalTroops, income, gold, generals, totalRegions }; // Truyền biến ra
+      stats[p] = { castles, granaries, armyGroups, totalTroops, income, gold, generals, totalRegions }; 
     }
     return stats;
   }, [G.regions, G.reserves, G.playerGenerals, ctx.numPlayers]);
@@ -430,11 +433,15 @@ export const Board = (props: CustomBoardProps) => {
 
       {/* BẢNG THỐNG KÊ (SCOREBOARD) */}
       {showStats && !G.isEditor && (
-        <StatsBoard matchID={matchID} allPlayerStats={allPlayerStats} playerID={playerID || null} playerColors={playerColors} winCondition={G.matchConfig.winConditionCastles} />
+          <StatsBoard 
+            matchID={matchID} 
+            allPlayerStats={allPlayerStats} 
+            playerID={playerID || null} 
+            playerColors={playerColors} 
+            winCondition={MAP_CONFIG.balance.structures.win_condition_castles} 
+          />      
       )}
-      {/* ========================================================= */}
-      {/* HỆ THỐNG CẢNH BÁO WIN VÀ GAME OVER */}
-      {/* ========================================================= */}
+      
       <GameOverScreen ctx={ctx} G={G} allPlayerStats={allPlayerStats} playerColors={playerColors} />
       
       {/* ========================================================= */}
@@ -447,7 +454,6 @@ export const Board = (props: CustomBoardProps) => {
         const isMyTurn = ctx.currentPlayer === playerID;
         const pcfg = MAP_CONFIG.balance.power;
 
-        // Xử lý Lính xuất trận (Nếu là Preview và là người khác nhìn vào thì trống)
         const currentAttackingTroops = (battle.stage === 'PREVIEW') ? battleSelection : battle.attackingTroops;
 
         let attackerBasePower = currentAttackingTroops.tot * pcfg.tot + currentAttackingTroops.ma * pcfg.ma + currentAttackingTroops.tau * pcfg.tau;
@@ -457,7 +463,6 @@ export const Board = (props: CustomBoardProps) => {
         defenderBasePower += targetRegion.hasCastle ? (targetRegion.troops.phao * pcfg.phao_castle) : (targetRegion.troops.phao * pcfg.phao_base);
         if (targetRegion.hasCastle) defenderBasePower += MAP_CONFIG.balance.structures.castle_defense_bonus;
 
-// Tính Toán Lực Lượng Viện Trợ
         const targetGeo = G.mapGeometry[battle.targetId];
         let rawAttSupport = 0;
         let rawDefSupport = 0;
@@ -470,7 +475,6 @@ export const Board = (props: CustomBoardProps) => {
             const r = G.regions[nId];
             const nGeo = G.mapGeometry[nId];
             
-            // UI CẬP NHẬT ĐÚNG LUẬT: Nước không nhận sp từ Cạn
             if (targetGeo.type === 'Water' && nGeo.type === 'Land') return;
 
             if (r.command === 'supporting' && r.owner !== null) {
@@ -492,7 +496,6 @@ export const Board = (props: CustomBoardProps) => {
         const attackerSupportPower = Math.floor(rawAttSupport * MAP_CONFIG.balance.combat.support_multiplier);
         const defenderSupportPower = Math.floor(rawDefSupport * MAP_CONFIG.balance.combat.support_multiplier);
 
-        // Xử lý điểm hiển thị
         const totalSelected = battleSelection.tot + battleSelection.ma + battleSelection.phao + battleSelection.tau;
         let displayAttPower: any = 0;
         let displayDefPower: any = 0;
@@ -529,7 +532,6 @@ export const Board = (props: CustomBoardProps) => {
               {battle.stage === 'PREVIEW' && <h2 style={{ color: '#ff5252', fontSize: '28px', margin: '0 0 15px 0' }}>⚔️ CHIẾN TRƯỜNG ⚔️</h2>}
               
               <div style={{ display: 'flex', gap: '20px' }}>
-                {/* THÔNG TIN PHE CÔNG */}
                 <div style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: '10px', padding: '15px', border: `2px solid ${playerColors[battle.attackerId]}` }}>
                   <h3 style={{ color: playerColors[battle.attackerId], marginTop: 0 }}>Phe Công (P{parseInt(battle.attackerId) + 1})</h3>
                   
@@ -579,7 +581,6 @@ export const Board = (props: CustomBoardProps) => {
                     </div>
                   )}
 
-                  {/* THẺ TƯỚNG CÔNG */}
                   {(battle.stage === 'RESULT' || battle.stage === 'RETREAT_SELECT') && battle.attackerGeneral && battle.attackerGeneral !== 'NONE' && (
                       <div style={{ display: 'flex', justifyContent: 'center', marginTop: '15px' }}>
                         <GeneralCard gen={{ ...MAP_CONFIG.balance.generals.pool.find(g => g.id === battle.attackerGeneral)!, isDead: false, cooldownRounds: 0 }} />                      </div>
@@ -597,7 +598,6 @@ export const Board = (props: CustomBoardProps) => {
                   <h2 style={{ color: '#fff', fontSize: '36px', margin: 0, textShadow: '0 0 10px #ff5252' }}>VS</h2>
                 </div>
 
-                {/* THÔNG TIN PHE THỦ */}
                 <div style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: '10px', padding: '15px', border: `2px solid ${playerColors[battle.defenderId]}` }}>
                   <h3 style={{ color: playerColors[battle.defenderId], marginTop: 0 }}>Phe Thủ (P{parseInt(battle.defenderId) + 1})</h3>
                   
@@ -628,7 +628,6 @@ export const Board = (props: CustomBoardProps) => {
                     </div>
                   )}
 
-                  {/* THẺ TƯỚNG THỦ */}
                   {(battle.stage === 'RESULT' || battle.stage === 'RETREAT_SELECT') && battle.defenderGeneral && battle.defenderGeneral !== 'NONE' && (
                       <div style={{ display: 'flex', justifyContent: 'center', marginTop: '15px' }}>
                           <GeneralCard gen={{ ...MAP_CONFIG.balance.generals.pool.find(g => g.id === battle.defenderGeneral)!, isDead: false, cooldownRounds: 0 }} />
@@ -744,87 +743,100 @@ export const Board = (props: CustomBoardProps) => {
         );
       })()}
       {showResultModal && G.lastBattleResult && G.lastBattleResult.combatStats && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: 'rgba(0,0,0,0.85)',
-                    zIndex: 10000,
-                    display: 'flex',       // Dùng flex để căn giữa
-                    overflowY: 'auto',     // Mở khóa cuộn chuột dọc
-                    padding: '40px 0'      // Tạo khoảng trống cách mép trên dưới màn hình
-                }}>
-                    <div className="glass-panel" style={{ 
-                        margin: 'auto',    // Tự căn giữa, nếu to quá thì đẩy scroll lên
-                        backgroundColor: '#111', 
-                        border: `3px solid ${G.lastBattleResult.winner === 'ATTACKER' ? '#ff5252' : '#4CAF50'}`,
-                        borderRadius: '10px',
-                        width: '90%',
-                        maxWidth: '800px',
-                        padding: '30px',
-                        textAlign: 'center' 
-                    }}>
-                        <h1 style={{ color: G.lastBattleResult.winner === 'ATTACKER' ? '#ff5252' : '#4CAF50', fontSize: '32px', margin: '0 0 25px 0' }}>
-                            {G.lastBattleResult.winner === 'ATTACKER' ? '⚔️ PHE CÔNG THẮNG TRẬN!' : '🛡️ PHE THỦ BẢO VỆ THÀNH CÔNG!'}
-                        </h1>
-                        
-                        {/* BẢNG ĐIỂM CHI TIẾT */}
-                        <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexDirection: 'row', flexWrap: 'wrap' }}>
-                            <div style={{ flex: '1 1 300px', background: '#222', padding: '15px', borderRadius: '8px', borderTop: `4px solid ${playerColors[G.lastBattleResult.attackerId]}` }}>
-                                <h3 style={{ color: playerColors[G.lastBattleResult.attackerId], margin: '0 0 15px 0' }}>Phe Công</h3>
-                                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                    <span>Quân trực tiếp:</span> 
-                                    <strong>{(G.lastBattleResult.combatStats.attTotal || 0) - (G.lastBattleResult.combatStats.attSupport || 0) - (G.lastBattleResult.combatStats.attGen || 0)}đ</strong>
-                                </div>
-                                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân hỗ trợ:</span> <strong>+{G.lastBattleResult.combatStats.attSupport}đ</strong></div>
-                                <div style={{ color: '#ffeb3b', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '10px' }}><span>Tướng ({G.lastBattleResult.attackerGeneral && G.lastBattleResult.attackerGeneral !== 'NONE' ? MAP_CONFIG.balance.generals.pool.find(g=>g.id===G.lastBattleResult.attackerGeneral)?.name : 'Không'}):</span> <strong>+{G.lastBattleResult.combatStats.attGen}đ</strong></div>
-                                <div style={{ color: '#ff5252', display: 'flex', justifyContent: 'space-between', fontSize: '20px', fontWeight: 'bold' }}><span>TỔNG:</span> <span>{G.lastBattleResult.combatStats.attTotal}đ</span></div>
-                            </div>
+  <div style={{
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    zIndex: 10000,
+    display: 'flex',
+    overflowY: 'auto', 
+    padding: '40px' 
+  }}>
+    <div className="glass-panel" style={{ 
+      margin: 'auto',
+      backgroundColor: '#111', 
+      border: `3px solid ${G.lastBattleResult.winner === 'ATTACKER' ? '#ff5252' : '#4CAF50'}`,
+      borderRadius: '10px',
+      width: '95%', 
+      maxWidth: '1400px',
+      padding: '30px',
+      textAlign: 'center',
+      display: 'flex', 
+      flexDirection: 'row', 
+      gap: '30px', 
+      justifyContent: 'space-between', 
+      alignItems: 'stretch'
+    }}>
+      
+      {/* CỘT TRÁI: TƯỚNG PHE CÔNG */}
+      <div style={{ flex: '0 0 350px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', background: 'rgba(0,0,0,0.3)', borderRadius: '10px' }}>
+        <h3 style={{ color: playerColors[G.lastBattleResult.attackerId], margin: '0 0 20px 0', fontSize: '20px', textTransform: 'uppercase' }}>Phe Công</h3>
+        {G.lastBattleResult.attackerGeneral && G.lastBattleResult.attackerGeneral !== 'NONE' ? (
+          <div style={{ scale: '1.2', transformOrigin: 'top center', marginBottom: '100px' }}>
+            <GeneralCard gen={{ ...MAP_CONFIG.balance.generals.pool.find(g => g.id === G.lastBattleResult.attackerGeneral)!, isDead: false, cooldownRounds: 0 }} />
+          </div>
+        ) : (
+          <div style={{ color: '#555', fontSize: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+             <span style={{fontSize: '50px', opacity: 0.3}}>🚫</span>
+             (Không dùng tướng)
+          </div>
+        )}
+      </div>
 
-                            <div style={{ flex: '1 1 300px', background: '#222', padding: '15px', borderRadius: '8px', borderTop: `4px solid ${playerColors[G.lastBattleResult.defenderId]}` }}>
-                                <h3 style={{ color: playerColors[G.lastBattleResult.defenderId], margin: '0 0 15px 0' }}>Phe Thủ</h3>
-                                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                    <span>Quân trực tiếp (gồm Thành):</span> 
-                                    <strong>{G.lastBattleResult.combatStats.defBase}đ</strong>
-                                </div>
-                                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân hỗ trợ:</span> <strong>+{G.lastBattleResult.combatStats.defSupport}đ</strong></div>
-                                <div style={{ color: '#ffeb3b', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '10px' }}><span>Tướng ({G.lastBattleResult.defenderGeneral && G.lastBattleResult.defenderGeneral !== 'NONE' ? MAP_CONFIG.balance.generals.pool.find(g=>g.id===G.lastBattleResult.defenderGeneral)?.name : 'Không'}):</span> <strong>+{G.lastBattleResult.combatStats.defGen}đ</strong></div>
-                                <div style={{ color: '#4CAF50', display: 'flex', justifyContent: 'space-between', fontSize: '20px', fontWeight: 'bold' }}><span>TỔNG:</span> <span>{G.lastBattleResult.combatStats.defTotal}đ</span></div>
-                            </div>
-                        </div>
+      {/* CỘT GIỮA: THỐNG KÊ VÀ NHẬT KÝ CHIẾN TRƯỜNG */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '600px', margin: '0 auto' }}>
+        <h1 style={{ color: G.lastBattleResult.winner === 'ATTACKER' ? '#ff5252' : '#4CAF50', fontSize: '36px', margin: '0 0 10px 0' }}>
+            {G.lastBattleResult.winner === 'ATTACKER' ? '⚔️ PHE CÔNG THẮNG!' : '🛡️ PHE THỦ BẢO VỆ THÀNH CÔNG!'}
+        </h1>
 
-                        {/* HẬU QUẢ VÀ LOGS */}
-                        <div style={{ background: '#2a2a2a', padding: '15px', borderRadius: '8px', textAlign: 'left', minHeight: '80px', maxHeight: '200px', overflowY: 'auto', marginBottom: '25px', border: '1px solid #444' }}>
-                            <h4 style={{ color: '#fff', margin: '0 0 10px 0' }}>📜 Nhật ký chiến trường:</h4>
-                            <ul style={{ color: '#aaa', margin: 0, paddingLeft: '20px', fontSize: '15px', lineHeight: '1.6' }}>
-                                {G.lastBattleResult.combatStats.logs.map((log: string, idx: number) => <li key={idx}>{log}</li>)}
-                                {G.lastBattleResult.combatStats.logs.length === 0 && <li>Không có sự kiện đặc biệt nào xảy ra.</li>}
-                            </ul>
-                        </div>
+        <div style={{ display: 'flex', gap: '15px', flexDirection: 'row', flexWrap: 'nowrap' }}>
+            <div style={{ flex: '1 1 250px', background: '#222', padding: '15px', borderRadius: '8px', borderTop: `4px solid ${playerColors[G.lastBattleResult.attackerId]}`, fontSize: '14px' }}>
+                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân trực tiếp:</span> <strong>{(G.lastBattleResult.combatStats.attTotal || 0) - (G.lastBattleResult.combatStats.attSupport || 0) - (G.lastBattleResult.combatStats.attGen || 0)}đ</strong></div>
+                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân hỗ trợ:</span> <strong>+{G.lastBattleResult.combatStats.attSupport}đ</strong></div>
+                <div style={{ color: '#ffeb3b', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '10px' }}><span>Tướng ({G.lastBattleResult.attackerGeneral && G.lastBattleResult.attackerGeneral !== 'NONE' ? MAP_CONFIG.balance.generals.pool.find(g=>g.id===G.lastBattleResult.attackerGeneral)?.name : 'Không'}):</span> <strong>+{G.lastBattleResult.combatStats.attGen}đ</strong></div>
+                <div style={{ color: '#ff5252', display: 'flex', justifyContent: 'space-between', fontSize: '20px', fontWeight: 'bold' }}><span>TỔNG:</span> <span>{G.lastBattleResult.combatStats.attTotal}đ</span></div>
+            </div>
 
-                        {/* NÚT XÁC NHẬN (ĐÓNG CỤC BỘ) */}
-                        <div style={{ textAlign: 'center' }}>
-                            <button 
-                                className="game-btn btn-primary" 
-                                onClick={() => {
-                                    setShowResultModal(false); // 1. Tắt popup trên màn hình này
-                                    // 2. Nếu game đang chờ xác nhận kết quả, gửi lệnh cho Server đi tiếp (kích hoạt Rút lui)
-                                    if (G.activeBattle && G.activeBattle.stage === 'RESULT' && 
-                                      (G.activeBattle.attackerId === playerID || G.activeBattle.defenderId === playerID)) {
-                                        moves.closeBattleResult();
-                                    }
-                                }} 
-                                style={{ /*... giữ nguyên style cũ ...*/ }}
-                            >
-                                XÁC NHẬN ĐÓNG
-                            </button>
-                            <p style={{ color: '#888', fontSize: '12px', marginTop: '10px' }}>
-                                (Đóng bảng này không ảnh hưởng đến người chơi khác)
-                            </p>
-                        </div>
-                    </div>
-                </div>
-              )}
+            <div style={{ flex: '1 1 250px', background: '#222', padding: '15px', borderRadius: '8px', borderTop: `4px solid ${playerColors[G.lastBattleResult.defenderId]}`, fontSize: '14px' }}>
+                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân trực tiếp (Thành):</span> <strong>{G.lastBattleResult.combatStats.defBase}đ</strong></div>
+                <div style={{ color: '#ccc', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span>Quân hỗ trợ:</span> <strong>+{G.lastBattleResult.combatStats.defSupport}đ</strong></div>
+                <div style={{ color: '#ffeb3b', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '10px' }}><span>Tướng ({G.lastBattleResult.defenderGeneral && G.lastBattleResult.defenderGeneral !== 'NONE' ? MAP_CONFIG.balance.generals.pool.find(g=>g.id===G.lastBattleResult.defenderGeneral)?.name : 'Không'}):</span> <strong>+{G.lastBattleResult.combatStats.defGen}đ</strong></div>
+                <div style={{ color: '#4CAF50', display: 'flex', justifyContent: 'space-between', fontSize: '20px', fontWeight: 'bold' }}><span>TỔNG:</span> <span>{G.lastBattleResult.combatStats.defTotal}đ</span></div>
+            </div>
+        </div>
 
-      {/* POPUP CHỌN VÙNG RÚT LUI NẰM DƯỚI ĐÁY BẢN ĐỒ */}
+        <div style={{ background: '#2a2a2a', padding: '15px', borderRadius: '8px', textAlign: 'left', flex: 1, overflowY: 'auto', border: '1px solid #444', maxHeight: '300px' }}>
+            <h4 style={{ color: '#fff', margin: '0 0 10px 0' }}>📜 Nhật ký chiến trường:</h4>
+            <ul style={{ color: '#aaa', margin: 0, paddingLeft: '20px', fontSize: '15px', lineHeight: '1.6' }}>
+                {G.lastBattleResult.combatStats.logs.map((log: string, idx: number) => <li key={idx}>{log}</li>)}
+                {G.lastBattleResult.combatStats.logs.length === 0 && <li>Không có sự kiện đặc biệt nào xảy ra.</li>}
+            </ul>
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: '10px' }}>
+            <button className="game-btn btn-primary" style={{padding: '12px 30px'}} onClick={() => { setShowResultModal(false); moves.closeBattleResult(); }}> XÁC NHẬN ĐÓNG </button>
+            <p style={{ color: '#888', fontSize: '12px', marginTop: '10px' }}> (Đóng bảng này không ảnh hưởng đến người chơi khác) </p>
+        </div>
+      </div>
+
+      {/* CỘT PHẢI: TƯỚNG PHE THỦ */}
+      <div style={{ flex: '0 0 350px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', background: 'rgba(0,0,0,0.3)', borderRadius: '10px' }}>
+        <h3 style={{ color: playerColors[G.lastBattleResult.defenderId], margin: '0 0 20px 0', fontSize: '20px', textTransform: 'uppercase' }}>Phe Thủ</h3>
+        {G.lastBattleResult.defenderGeneral && G.lastBattleResult.defenderGeneral !== 'NONE' ? (
+          <div style={{ scale: '1.2', transformOrigin: 'top center', marginBottom: '100px' }}>
+            <GeneralCard gen={{ ...MAP_CONFIG.balance.generals.pool.find(g => g.id === G.lastBattleResult.defenderGeneral)!, isDead: false, cooldownRounds: 0 }} />
+          </div>
+        ) : (
+          <div style={{ color: '#555', fontSize: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+             <span style={{fontSize: '50px', opacity: 0.3}}>🚫</span>
+             (Không dùng tướng)
+          </div>
+        )}
+      </div>
+
+    </div>
+  </div>
+)}
+
       {G.activeBattle && G.activeBattle.stage === 'RETREAT_SELECT' && (() => {
         const battle = G.activeBattle;
         const isMyRetreat = battle.retreatingPlayerId === playerID;
@@ -841,7 +853,6 @@ export const Board = (props: CustomBoardProps) => {
         )
       })()}
 
-      {/* POPUP HỎI TẤN CÔNG TIẾP G4_2 */}
       {G.pendingG42 && G.pendingG42.playerId === playerID && (
         <div style={{ position: 'fixed', top:0, left:0, right:0, bottom:0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(5px)', opacity: isSpacePressed ? 0 : 1, pointerEvents: isSpacePressed ? 'none' : 'auto', transition: 'opacity 0.2s' }}>
           <div className="glass-panel" style={{ width: '500px', padding: '30px', textAlign: 'center', border: '2px solid #ff9800', boxShadow: '0 0 30px rgba(255, 152, 0, 0.4)' }}>
@@ -852,20 +863,19 @@ export const Board = (props: CustomBoardProps) => {
             <div style={{ display: 'flex', gap: '15px' }}>
               <button className="game-btn btn-danger" style={{ flex: 1, padding: '15px', fontSize: '18px', background: '#555' }} onClick={() => moves.declineG42()}>❌ Dừng Lại (Khóa vùng)</button>
               <button className="game-btn btn-primary" style={{ flex: 1, padding: '15px', fontSize: '18px', background: '#d32f2f' }} 
-                onClick={() => {
-                  const regionId = G.pendingG42!.regionId;
-                  moves.acceptG42(regionId);
-                  setActiveRegion(regionId);
-                  setActionMenu('move_target');
-                }}
-              >⚔️ Đánh Tiếp (+1 Lệnh)</button>
+              onClick={() => {
+                const regionId = G.pendingG42!.regionId;
+                moves.acceptG42(regionId);
+                setActiveRegion(regionId);
+                setActionMenu('move_target');
+              }}
+            >⚔️ Đánh Tiếp (Miễn Phí Lệnh)</button>
             </div>
           </div>
         </div>
       )}
 
 
-      {/* SIDEBAR BÊN TRÁI HOẶC MENU EDITOR */}
       {!G.isEditor ? (
         ctx.currentPlayer === playerID && (
         <div 
@@ -978,10 +988,40 @@ export const Board = (props: CustomBoardProps) => {
                           </>
                         )}
 
-                        <button className="game-btn btn-danger" style={{ width: '100%', marginTop: '10px' }} onClick={() => { setActionMenu(null); setActiveRegion(null); setMoveTarget(null); }}>✖ Hủy chọn vùng</button>
+                        {/* NÚT GIẢI TÁN QUÂN LUÔN HIỂN THỊ */}
+                        {!isNeutralActive && (
+                          <button 
+                            className="game-btn btn-danger" 
+                            style={{ width: '100%', background: '#b71c1c', border: '1px solid #ff5252', marginTop: '10px' }} 
+                            onClick={() => setActionMenu('disband')}
+                          >
+                            🗑️ Giải tán quân (Miễn phí)
+                          </button>
+                        )}
+
+                        <button className="game-btn btn-danger" style={{ width: '100%', marginTop: '5px', background: '#555' }} onClick={() => { setActionMenu(null); setActiveRegion(null); setMoveTarget(null); }}>✖ Hủy chọn vùng</button>
                       </div>
                     );
                   })()}
+
+                  {actionMenu === 'disband' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <h4 style={{ margin: '0 0 10px 0', color: '#fff' }}>Chọn quân để giải tán:</h4>
+                      <p style={{ color: '#aaa', fontSize: '13px', margin: '0 0 5px 0' }}>Hành động này không tốn Lệnh và không khóa ô đất.</p>
+                      
+                      {G.mapGeometry[activeRegion].type === 'Land' ? (
+                        <>
+                          <button className="game-btn btn-danger" style={{ width: '100%', opacity: G.regions[activeRegion].troops.tot > 0 ? 1 : 0.4 }} onClick={() => G.regions[activeRegion].troops.tot > 0 && moves.disbandTroop(activeRegion, 'tot')}>- Giải tán 1 Bộ binh</button>
+                          <button className="game-btn btn-danger" style={{ width: '100%', opacity: G.regions[activeRegion].troops.ma > 0 ? 1 : 0.4 }} onClick={() => G.regions[activeRegion].troops.ma > 0 && moves.disbandTroop(activeRegion, 'ma')}>- Giải tán 1 Kỵ binh</button>
+                          <button className="game-btn btn-danger" style={{ width: '100%', opacity: G.regions[activeRegion].troops.phao > 0 ? 1 : 0.4 }} onClick={() => G.regions[activeRegion].troops.phao > 0 && moves.disbandTroop(activeRegion, 'phao')}>- Giải tán 1 Pháo binh</button>
+                        </>
+                      ) : (
+                        <button className="game-btn btn-danger" style={{ width: '100%', opacity: G.regions[activeRegion].troops.tau > 0 ? 1 : 0.4 }} onClick={() => G.regions[activeRegion].troops.tau > 0 && moves.disbandTroop(activeRegion, 'tau')}>- Giải tán 1 Thuyền</button>
+                      )}
+                      
+                      <button className="game-btn btn-primary" style={{ width: '100%', marginTop: '10px' }} onClick={() => setActionMenu('main')}>⬅ Quay lại</button>
+                    </div>
+                  )}
 
                   {actionMenu === 'recruit' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1052,33 +1092,22 @@ export const Board = (props: CustomBoardProps) => {
                             const canBuildCastle = G.reserves[ctx.currentPlayer] >= MAP_CONFIG.balance.cost.castle && G.regions[activeRegion].troops.tot >= MAP_CONFIG.balance.structures.castle_cost_troop;
                             const tracker = G.setupDataTracker[ctx.currentPlayer];
                             const castlesBuilt = tracker?.castlesBuilt || 0;
-                            
-                            // LẤY GIỚI HẠN TỪ matchConfig
-                            const maxCastles = G.matchConfig.maxCastlesToBuild;
-                            const isAdjToAnyCastle = G.mapGeometry[activeRegion].neighbors.some(n => G.regions[n].hasCastle);
-                            
-                            // Điều kiện cấm: Hoặc đã xây đủ quota, hoặc bị dính liền kề với 1 thành bất kỳ
-                            const isRestricted = (castlesBuilt >= maxCastles) || isAdjToAnyCastle;
+                            const isAdjToOwnCastle = G.mapGeometry[activeRegion].neighbors.some(n => G.regions[n].owner === ctx.currentPlayer && G.regions[n].hasCastle);
+                            const isRestricted = castlesBuilt >= 2 && isAdjToOwnCastle;
 
                             return (
                               <button 
                                 className="game-btn btn-warning" 
                                 style={{ width: '100%', opacity: (canBuildCastle && !isRestricted) ? 1 : 0.4 }} 
                                 onClick={() => {
-                                  if (castlesBuilt >= maxCastles) {
-                                      alert(`❌ Lãnh chúa đã tự xây tối đa ${maxCastles} Thành trì! Muốn mở rộng lãnh thổ, xin hãy phát binh xâm lược!`);
-                                      return;
-                                  }
-                                  if (isAdjToAnyCastle) {
-                                    alert("❌ Thành trì BẮT BUỘC phải xây cách Thành khác ít nhất 1 ô!");
+                                  if (isRestricted) {
+                                    alert("❌ Thành tự xây lần thứ 3 trở đi BẮT BUỘC phải cách Thành cũ của bạn ít nhất 1 ô!");
                                     return;
                                   }
                                   if (canBuildCastle) moves.buildStructure(activeRegion, 'castle');
                                 }}
                               >
                                 🏰 Thành trì ({MAP_CONFIG.balance.cost.castle}đ + {MAP_CONFIG.balance.structures.castle_cost_troop} Bộ binh)
-                                <br/>
-                                <span style={{fontSize: '11px'}}>Đã xây: {castlesBuilt}/{maxCastles}</span>
                               </button>
                             );
                           })()}

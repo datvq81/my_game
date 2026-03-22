@@ -2,7 +2,6 @@
   "name": "my-ts-boardgame",
   "private": true,
   "version": "0.0.0",
-
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -12,6 +11,7 @@
   "dependencies": {
     "18": "^0.0.0",
     "boardgame.io": "^0.50.2",
+    "dotenv": "^17.3.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
@@ -26,6 +26,7 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
     "vite": "^7.3.1"

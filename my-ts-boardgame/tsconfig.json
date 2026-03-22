@@ -3,8 +3,7 @@
     "target": "ES2019",
     "lib": ["DOM", "DOM.Iterable", "ES2019"],
     "jsx": "react-jsx",
-    "module": "ESNext",
-    "types": ["vite/client"],
+    "module": "commonjs",
     "moduleResolution": "node",
 
     "strict": true,
