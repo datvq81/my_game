@@ -20,10 +20,10 @@ export const MAP_CONFIG = {
     
     // 2. Giá mua quân và xây dựng (Gold Cost)
     cost: {
-      tot: 1,
-      ma: 2,
-      phao: 2,
-      tau: 1,
+      tot: 5,
+      ma: 10,
+      phao: 10,
+      tau: 5,
       castle: 4,
       granary: 2
     },
